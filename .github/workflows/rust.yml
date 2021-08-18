@@ -15,10 +15,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Install clippy and fmt
-      run: |
-        rustup component add clippy
-        rustup component add rustfmt
     - name: Check formating
       run: cargo fmt -- --check
     - name: Run clippy
