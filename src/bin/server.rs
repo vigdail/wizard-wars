@@ -1,7 +1,5 @@
-use wizard_wars::common::hello;
-use wizard_wars::server::server;
+use bevy::prelude::*;
 
 fn main() {
-    server();
-    hello();
+    App::new().run();
 }
