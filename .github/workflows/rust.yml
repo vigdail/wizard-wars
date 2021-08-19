@@ -17,7 +17,7 @@ jobs:
     - name: Update
       run: sudo apt update
     - name: Install Dependencies
-      run: sudo apt-get install libasound2-dev
+      run: sudo apt-get install libasound2-dev libudev-dev
     - uses: actions/checkout@v2
     - name: Check formating
       run: cargo fmt -- --check
