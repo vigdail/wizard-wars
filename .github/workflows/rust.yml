@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Update
+      run: sudo apt update
+    - name: Install Dependencies
+      run: sudo apt-get install libasound2-dev
     - uses: actions/checkout@v2
     - name: Check formating
       run: cargo fmt -- --check
