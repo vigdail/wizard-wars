@@ -10,7 +10,7 @@ impl Plugin for ClientPlugin {
             height: 600.0,
             ..Default::default()
         })
-            .add_plugins(DefaultPlugins)
-            .add_plugin(NetworkingPlugin::default());
+        .add_plugins(DefaultPlugins)
+        .add_plugin(NetworkingPlugin::default());
     }
 }
