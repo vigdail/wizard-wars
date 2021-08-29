@@ -8,7 +8,6 @@ use crate::common::{
     components::{NetworkId, Position},
     network_channels_setup, ClientMessage, InputMessage, ServerMessage,
 };
-use bevy::input::keyboard::KeyboardInput;
 use std::collections::HashMap;
 
 pub struct ClientPlugin;
@@ -57,8 +56,8 @@ fn handle_network_events_system(
     mut network_event_reader: EventReader<NetworkEvent>,
 ) {
     for event in network_event_reader.iter() {
-        match event {
-            NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
+        if let NetworkEvent::Connected(handle) = event {
+            match net.connections.get_mut(handle) {
                 Some(_connection) => {
                     info!("Connection successful");
 
@@ -66,8 +65,7 @@ fn handle_network_events_system(
                         .expect("Could not send hello");
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
-            },
-            _ => {}
+            }
         }
     }
 }
@@ -112,18 +110,14 @@ fn spawn_player_system(
         let (transform, local, id) = match event {
             InsertPlayerEvent::Remote(id) => {
                 println!("Inserting remote player");
-                (
-                    Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
-                    None,
-                    id.clone(),
-                )
+                (Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0), None, *id)
             }
             InsertPlayerEvent::Local(id) => {
                 println!("Inserting local player");
                 (
                     Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
                     Some(LocalPlayer),
-                    id.clone(),
+                    *id,
                 )
             }
         };
