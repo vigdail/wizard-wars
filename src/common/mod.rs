@@ -62,8 +62,14 @@ fn player_component_message_settings(channel: u8) -> MessageChannelSettings {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum InputMessage {
+    Move(Vec2),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
     Hello,
+    Input(InputMessage),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

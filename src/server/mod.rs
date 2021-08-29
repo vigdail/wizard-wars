@@ -7,13 +7,17 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use serde::{Deserialize, Serialize};
 
 use crate::common::components::{NetworkId, Position};
-use crate::common::{network_channels_setup, ServerMessage};
+use crate::common::{network_channels_setup, ClientMessage, InputMessage, ServerMessage};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq)]
 struct NetworkHandle(u32);
 
 #[derive(Default)]
 struct CurrentId(u32);
+
+enum InputEvent {
+    Move(NetworkHandle, Vec2),
+}
 
 pub struct ServerPlugin;
 
@@ -22,12 +26,15 @@ impl Plugin for ServerPlugin {
         app.insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_millis(
             1000 / 30,
         )))
+        .add_event::<InputEvent>()
         .insert_resource(CurrentId::default())
         .add_plugins(MinimalPlugins)
         .add_plugin(NetworkingPlugin::default())
         .add_startup_system(network_channels_setup.system())
         .add_startup_system(server_setup_system.system())
         .add_system(handle_network_events_system.system())
+        .add_system(read_network_channels_system.system())
+        .add_system(handle_input_events_system.system())
         .add_system(broadcast_changes_system.system());
     }
 }
@@ -88,11 +95,50 @@ fn handle_network_events_system(
     }
 }
 
+fn read_network_channels_system(
+    mut net: ResMut<NetworkResource>,
+    mut input_events: EventWriter<InputEvent>,
+) {
+    for (handle, connection) in net.connections.iter_mut() {
+        let channels = connection.channels().unwrap();
+
+        while let Some(message) = channels.recv::<ClientMessage>() {
+            match message {
+                ClientMessage::Hello => {}
+                ClientMessage::Input(e) => match e {
+                    InputMessage::Move(dir) => {
+                        input_events.send(InputEvent::Move(NetworkHandle(*handle), dir));
+                    }
+                },
+            }
+        }
+    }
+}
+
 fn broadcast_changes_system(
     mut net: ResMut<NetworkResource>,
     changed_positions: Query<(&NetworkId, &Position), Changed<Position>>,
 ) {
     for (id, position) in changed_positions.iter() {
         let _ = net.broadcast_message((*id, *position));
+    }
+}
+
+fn handle_input_events_system(
+    mut events: EventReader<InputEvent>,
+    time: Res<Time>,
+    mut query: Query<(&NetworkHandle, &mut Position)>,
+) {
+    for event in events.iter() {
+        match event {
+            InputEvent::Move(handle, dir) => {
+                for (h, mut position) in query.iter_mut() {
+                    if h == handle {
+                        position.0.x += dir.x * time.delta().as_millis() as f32 / 1000.0;
+                        position.0.z += dir.y * time.delta().as_millis() as f32 / 1000.0;
+                    }
+                }
+            }
+        }
     }
 }

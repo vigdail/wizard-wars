@@ -2,11 +2,14 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
+use turbulence::message_channels::ChannelMessage;
 
 use crate::common::{
     components::{NetworkId, Position},
-    network_channels_setup, ClientMessage, ServerMessage,
+    network_channels_setup, ClientMessage, InputMessage, ServerMessage,
 };
+use bevy::input::keyboard::KeyboardInput;
+use std::collections::HashMap;
 
 pub struct ClientPlugin;
 
@@ -32,7 +35,13 @@ impl Plugin for ClientPlugin {
         .add_startup_system(client_setup_system.system())
         .add_system(spawn_player_system.system())
         .add_system(handle_network_events_system.system())
-        .add_system(read_server_message_channel_system.system());
+        .add_system(read_server_message_channel_system.system())
+        .add_system_to_stage(CoreStage::PreUpdate, input_system.system())
+        .add_system_to_stage(
+            CoreStage::PreUpdate,
+            read_component_channel_system::<Position>.system(),
+        )
+        .add_system(update_ball_translation_system.system());
     }
 }
 
@@ -100,16 +109,21 @@ fn spawn_player_system(
     let width = 0.5;
 
     for event in events.iter() {
-        let (transform, local) = match event {
+        let (transform, local, id) = match event {
             InsertPlayerEvent::Remote(id) => {
                 println!("Inserting remote player");
-                (Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0), None)
+                (
+                    Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
+                    None,
+                    id.clone(),
+                )
             }
             InsertPlayerEvent::Local(id) => {
                 println!("Inserting local player");
                 (
                     Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
                     Some(LocalPlayer),
+                    id.clone(),
                 )
             }
         };
@@ -127,6 +141,7 @@ fn spawn_player_system(
             ..Default::default()
         });
         entity.insert(Position::default());
+        entity.insert(id);
         if local.is_some() {
             entity.insert(LocalPlayer);
         }
@@ -143,7 +158,7 @@ fn read_server_message_channel_system(
         while let Some(message) = channels.recv::<ServerMessage>() {
             match message {
                 ServerMessage::Welcome(id) => {
-                    println!("Welcome message recieved: {:?}", id);
+                    println!("Welcome message received: {:?}", id);
                 }
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
@@ -153,5 +168,69 @@ fn read_server_message_channel_system(
                 }
             }
         }
+    }
+}
+
+fn update_ball_translation_system(mut players: Query<(&Position, &mut Transform)>) {
+    for (position, mut transform) in players.iter_mut() {
+        // println!("{:?}", position);
+        transform.translation.x = position.0.x;
+        transform.translation.z = position.0.z;
+    }
+}
+
+fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
+    let mut dir = Vec2::ZERO;
+    let speed = 5.0;
+    if input.pressed(KeyCode::W) {
+        dir.y -= speed;
+    }
+    if input.pressed(KeyCode::S) {
+        dir.y += speed;
+    }
+    if input.pressed(KeyCode::A) {
+        dir.x -= speed;
+    }
+    if input.pressed(KeyCode::D) {
+        dir.x += speed;
+    }
+
+    if dir.length() > 0.0 {
+        let _ = net.broadcast_message(ClientMessage::Input(InputMessage::Move(dir)));
+    }
+}
+
+fn read_component_channel_system<C: ChannelMessage>(
+    mut cmd: Commands,
+    mut net: ResMut<NetworkResource>,
+    players_query: Query<(&NetworkId, Entity, Option<&LocalPlayer>)>,
+) {
+    let players: HashMap<&NetworkId, (Entity, Option<&LocalPlayer>)> =
+        players_query.iter().map(|(b, e, l)| (b, (e, l))).collect();
+
+    for (_, connection) in net.connections.iter_mut() {
+        let channels = connection.channels().unwrap();
+        while let Some((network_id, component)) = channels.recv::<(NetworkId, C)>() {
+            match players.get(&network_id) {
+                Some((entity, _)) => {
+                    cmd.entity(*entity).insert(component);
+                }
+                None => {
+                    println!("No player found");
+                }
+            }
+        }
+
+        // while let Some((ball_id, component)) = channels.recv::<(BallId, C)>() {
+        //     match balls.get(&ball_id) {
+        //         Some((entity, local_player)) => {
+        //             if local_player.is_some() {
+        //                 continue;
+        //             }
+        //
+        //             cmd.entity(*entity).insert(component);
+        //
+        //     }
+        // }
     }
 }
