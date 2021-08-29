@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use wizard_wars::client::ClientPlugin;
+
 fn main() {
-    App::new().run();
+    App::build().add_plugin(ClientPlugin).run();
 }
