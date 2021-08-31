@@ -1,8 +1,9 @@
 use crate::common::components::{NetworkId, Position};
-use crate::common::{ClientMessage, InputMessage, ServerMessage};
+use crate::common::{network_channels_setup, ClientMessage, InputMessage, ServerMessage};
+use crate::server::states::ServerState;
 use crate::server::InputEvent;
 use bevy::prelude::*;
-use bevy_networking_turbulence::{NetworkEvent, NetworkResource};
+use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -16,7 +17,14 @@ pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_system(handle_network_events_system.system())
+        app.insert_resource(CurrentId::default())
+            .add_plugin(NetworkingPlugin::default())
+            .add_system_set(
+                SystemSet::on_enter(ServerState::Init)
+                    .with_system(network_channels_setup.system())
+                    .with_system(server_setup_system.system()),
+            )
+            .add_system(handle_network_events_system.system())
             .add_system(read_network_channels_system.system())
             .add_system(broadcast_changes_system.system());
     }

@@ -1,10 +1,11 @@
 mod network;
 mod states;
+mod util;
 
 use crate::common::components::Position;
 use crate::server::network::{NetworkHandle, NetworkPlugin};
 use crate::server::states::ServerState;
-use crate::server::states::{InitState, LobbyState};
+use crate::server::util::PrintStateNamesPlugin;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
 use std::time::Duration;
@@ -22,10 +23,12 @@ impl Plugin for ServerPlugin {
         )))
         .add_event::<InputEvent>()
         .add_state(ServerState::Init)
+        .add_system_set(
+            SystemSet::on_update(ServerState::Init).with_system(check_init_system.system()),
+        )
         .add_plugins(MinimalPlugins)
-        .add_plugin(InitState)
-        .add_plugin(LobbyState)
         .add_plugin(NetworkPlugin)
+        .add_plugin(PrintStateNamesPlugin)
         .add_system(handle_input_events_system.system());
     }
 }
@@ -47,4 +50,10 @@ fn handle_input_events_system(
             }
         }
     }
+}
+
+fn check_init_system(mut app_state: ResMut<State<ServerState>>) {
+    app_state
+        .set(ServerState::Lobby)
+        .expect("Can not change state");
 }
