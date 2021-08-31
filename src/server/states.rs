@@ -1,7 +1,6 @@
 use bevy::prelude::*;
 use std::fmt::Formatter;
 
-#[allow(dead_code)]
 #[derive(Eq, PartialEq, Clone, Hash, Debug)]
 pub enum ServerState {
     Init,

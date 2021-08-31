@@ -1,5 +1,5 @@
 use crate::common::components::{NetworkId, Position};
-use crate::common::{network_channels_setup, ClientMessage, InputMessage, ServerMessage};
+use crate::common::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage};
 use crate::server::states::ServerState;
 use crate::server::InputEvent;
 use bevy::prelude::*;
@@ -13,11 +13,15 @@ pub struct NetworkHandle(u32);
 #[derive(Default)]
 pub struct CurrentId(u32);
 
+#[derive(Default)]
+pub struct Host(Option<NetworkId>);
+
 pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(CurrentId::default())
+            .insert_resource(Host::default())
             .add_plugin(NetworkingPlugin::default())
             .add_system_set(
                 SystemSet::on_enter(ServerState::Init)
@@ -38,48 +42,19 @@ pub fn server_setup_system(mut net: ResMut<NetworkResource>) {
 }
 
 fn handle_network_events_system(
-    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
-    mut ids: ResMut<CurrentId>,
     mut network_event_reader: EventReader<NetworkEvent>,
-    players: Query<(Entity, &NetworkHandle, &NetworkId)>,
 ) {
     for event in network_event_reader.iter() {
         match event {
             NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
                 Some(_connection) => {
                     println!("New connection handle: {:?}", &handle);
-                    let network_id = NetworkId(ids.0);
-                    ids.0 += 1;
-
-                    cmd.spawn()
-                        .insert(NetworkHandle(*handle))
-                        .insert(Position(Vec3::default()))
-                        .insert(network_id);
-                    net.send_message(*handle, ServerMessage::Welcome(network_id))
-                        .expect("Could not send welcome");
-                    net.send_message(*handle, ServerMessage::InsertLocalPlayer(network_id))
-                        .expect("Could not send message");
-
-                    for (_, _, id) in players.iter() {
-                        net.send_message(*handle, ServerMessage::InsertPlayer(*id))
-                            .expect("Could not send message");
-                    }
-
-                    for (_, connection, _) in players.iter() {
-                        net.send_message(connection.0, ServerMessage::InsertPlayer(network_id))
-                            .expect("Could not send message");
-                    }
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
             },
             NetworkEvent::Disconnected(handle) => {
-                println!("Remove ball: {:?}", *handle);
-                for (entity, player_handle, _) in players.iter() {
-                    if player_handle.0 == *handle {
-                        cmd.entity(entity).despawn();
-                    }
-                }
+                println!("Disconnected handle: {:?}", &handle);
             }
             _ => {}
         }
@@ -87,22 +62,55 @@ fn handle_network_events_system(
 }
 
 fn read_network_channels_system(
+    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
+    mut host: ResMut<Host>,
     mut input_events: EventWriter<InputEvent>,
+    mut ids: ResMut<CurrentId>,
+    clients: Query<(Entity, &NetworkHandle, &Name)>,
 ) {
+    let mut to_send = Vec::new();
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         while let Some(message) = channels.recv::<ClientMessage>() {
             match message {
-                ClientMessage::Hello => {}
-                ClientMessage::Input(e) => match e {
-                    InputMessage::Move(dir) => {
+                ClientMessage::Hello(name) => {
+                    let network_id = NetworkId(ids.0);
+                    ids.0 += 1;
+
+                    if host.0.is_none() {
+                        host.0 = Some(network_id);
+                    }
+
+                    cmd.spawn()
+                        .insert(NetworkHandle(*handle))
+                        .insert(Name::new(name))
+                        .insert(network_id);
+
+                    to_send.push((*handle, ServerMessage::Welcome(network_id)));
+                    to_send.push((*handle, ServerMessage::SetHost(host.0.unwrap())));
+
+                    for (_, client, client_name) in clients.iter() {
+                        to_send.push((
+                            client.0,
+                            ServerMessage::PlayerJoined(client_name.as_str().to_owned()),
+                        ));
+                    }
+                }
+                ClientMessage::Action(e) => match e {
+                    ActionMessage::Move(dir) => {
                         input_events.send(InputEvent::Move(NetworkHandle(*handle), dir));
                     }
                 },
+                ClientMessage::StartGame => {}
+                ClientMessage::Loaded => {}
             }
         }
+    }
+    for (handle, msg) in to_send.drain(..) {
+        net.send_message(handle, msg.clone())
+            .unwrap_or_else(|_| panic!("Can not send message: {:?} to {}", msg, handle));
     }
 }
 

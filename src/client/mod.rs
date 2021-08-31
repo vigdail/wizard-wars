@@ -6,7 +6,7 @@ use turbulence::message_channels::ChannelMessage;
 
 use crate::common::{
     components::{NetworkId, Position},
-    network_channels_setup, ClientMessage, InputMessage, ServerMessage,
+    network_channels_setup, ActionMessage, ClientMessage, ServerMessage,
 };
 use std::collections::HashMap;
 
@@ -61,7 +61,7 @@ fn handle_network_events_system(
                 Some(_connection) => {
                     info!("Connection successful");
 
-                    net.send_message(*handle, ClientMessage::Hello)
+                    net.send_message(*handle, ClientMessage::Hello("John Doe".to_owned()))
                         .expect("Could not send hello");
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
@@ -154,12 +154,19 @@ fn read_server_message_channel_system(
                 ServerMessage::Welcome(id) => {
                     println!("Welcome message received: {:?}", id);
                 }
+                ServerMessage::SetHost(id) => {
+                    println!("Host now is: {:?}", id);
+                }
+                ServerMessage::PlayerJoined(name) => {
+                    println!("Player joined lobby: {}", name);
+                }
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
                 }
                 ServerMessage::InsertPlayer(id) => {
                     events.send(InsertPlayerEvent::Remote(id));
                 }
+                ServerMessage::StartLoading => {}
             }
         }
     }
@@ -167,7 +174,6 @@ fn read_server_message_channel_system(
 
 fn update_ball_translation_system(mut players: Query<(&Position, &mut Transform)>) {
     for (position, mut transform) in players.iter_mut() {
-        // println!("{:?}", position);
         transform.translation.x = position.0.x;
         transform.translation.z = position.0.z;
     }
@@ -190,7 +196,7 @@ fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     }
 
     if dir.length() > 0.0 {
-        let _ = net.broadcast_message(ClientMessage::Input(InputMessage::Move(dir)));
+        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir)));
     }
 }
 
@@ -214,17 +220,5 @@ fn read_component_channel_system<C: ChannelMessage>(
                 }
             }
         }
-
-        // while let Some((ball_id, component)) = channels.recv::<(BallId, C)>() {
-        //     match balls.get(&ball_id) {
-        //         Some((entity, local_player)) => {
-        //             if local_player.is_some() {
-        //                 continue;
-        //             }
-        //
-        //             cmd.entity(*entity).insert(component);
-        //
-        //     }
-        // }
     }
 }

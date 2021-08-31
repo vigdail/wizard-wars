@@ -62,19 +62,24 @@ fn player_component_message_settings(channel: u8) -> MessageChannelSettings {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum InputMessage {
+pub enum ActionMessage {
     Move(Vec2),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
-    Hello,
-    Input(InputMessage),
+    Hello(String),
+    StartGame,
+    Loaded,
+    Action(ActionMessage),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
     Welcome(NetworkId),
+    PlayerJoined(String),
+    SetHost(NetworkId),
+    StartLoading,
     InsertPlayer(NetworkId),
     InsertLocalPlayer(NetworkId),
 }
