@@ -2,8 +2,8 @@ mod network;
 mod states;
 mod util;
 
-use crate::common::components::Position;
-use crate::server::network::{NetworkHandle, NetworkPlugin};
+use crate::common::components::{Client, Position};
+use crate::server::network::NetworkPlugin;
 use crate::server::states::ServerState;
 use crate::server::util::PrintStateNamesPlugin;
 use bevy::app::ScheduleRunnerSettings;
@@ -11,7 +11,7 @@ use bevy::prelude::*;
 use std::time::Duration;
 
 enum InputEvent {
-    Move(NetworkHandle, Vec2),
+    Move(Client, Vec2),
 }
 
 pub struct ServerPlugin;
@@ -36,7 +36,7 @@ impl Plugin for ServerPlugin {
 fn handle_input_events_system(
     mut events: EventReader<InputEvent>,
     time: Res<Time>,
-    mut query: Query<(&NetworkHandle, &mut Position)>,
+    mut query: Query<(&Client, &mut Position)>,
 ) {
     for (h, mut position) in query.iter_mut() {
         for event in events.iter() {

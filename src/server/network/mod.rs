@@ -1,17 +1,14 @@
-use crate::common::components::{NetworkId, Position};
+use crate::common::components::{Client, NetworkId, Position};
 use crate::common::messages::{
     network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, LobbyServerMessage,
     ServerMessage,
 };
+use crate::common::network::{Dest, Pack};
 use crate::server::states::ServerState;
 use crate::server::InputEvent;
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
-use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
-#[derive(Serialize, Deserialize, Eq, PartialEq)]
-pub struct NetworkHandle(u32);
 
 #[derive(Default)]
 pub struct CurrentId(u32);
@@ -70,9 +67,10 @@ fn read_network_channels_system(
     mut host: ResMut<Host>,
     mut input_events: EventWriter<InputEvent>,
     mut ids: ResMut<CurrentId>,
-    clients: Query<(&NetworkHandle, &Name)>,
+    clients: Query<&Client>,
 ) {
-    let mut to_send = Vec::new();
+    let mut packs = Vec::<Pack<ServerMessage>>::new();
+
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
@@ -87,30 +85,31 @@ fn read_network_channels_system(
                             host.0 = Some(network_id);
                         }
 
+                        let client = Client(*handle);
+                        let client_name = Name::new(name);
+
                         cmd.spawn()
-                            .insert(NetworkHandle(*handle))
-                            .insert(Name::new(name))
+                            .insert(client)
+                            .insert(client_name.clone())
                             .insert(network_id);
 
-                        to_send.push((
-                            *handle,
+                        packs.push(Pack::new(
                             ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
+                            Dest::Single(client),
                         ));
-                        to_send.push((
-                            *handle,
+                        packs.push(Pack::new(
                             ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(
                                 host.0.unwrap(),
                             )),
+                            Dest::Single(client),
                         ));
 
-                        for (client, client_name) in clients.iter() {
-                            to_send.push((
-                                client.0,
-                                ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
-                                    client_name.as_str().to_owned(),
-                                )),
-                            ));
-                        }
+                        packs.push(Pack::new(
+                            ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
+                                client_name.as_str().to_owned(),
+                            )),
+                            Dest::AllExcept(client),
+                        ));
                     }
                     LobbyClientMessage::ChangeReadyState(_) => todo!(),
                     LobbyClientMessage::GetPlayerList => todo!(),
@@ -118,16 +117,35 @@ fn read_network_channels_system(
                 },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {
-                        input_events.send(InputEvent::Move(NetworkHandle(*handle), dir));
+                        input_events.send(InputEvent::Move(Client(*handle), dir));
                     }
                 },
                 ClientMessage::Loaded => {}
             }
         }
     }
-    for (handle, msg) in to_send.drain(..) {
-        net.send_message(handle, msg.clone())
-            .unwrap_or_else(|_| panic!("Can not send message: {:?} to {}", msg, handle));
+
+    for pack in packs.drain(..) {
+        match pack.dest {
+            Dest::Single(client) => {
+                net.send_message(client.0, pack.msg)
+                    .expect("Unable to send message");
+            }
+            Dest::AllExcept(exclude_client) => {
+                for &client in clients.iter() {
+                    if exclude_client != client {
+                        net.send_message(client.0, pack.msg.clone())
+                            .expect("Unable to send message");
+                    }
+                }
+            }
+            Dest::All => {
+                for client in clients.iter() {
+                    net.send_message(client.0, pack.msg.clone())
+                        .expect("Unable to send message");
+                }
+            }
+        }
     }
 }
 
