@@ -8,9 +8,15 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum PlayerReadyState {
+    Ready,
+    NotReady,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyClientMessage {
     Join(String),
-    ChangeReadyState(bool),
+    ChangeReadyState(PlayerReadyState),
     GetPlayerList,
     StartGame,
 }

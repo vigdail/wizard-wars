@@ -14,7 +14,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 pub struct CurrentId(u32);
 
 #[derive(Default)]
-pub struct Host(Option<NetworkId>);
+pub struct Host(pub Option<NetworkId>);
 
 pub struct NetworkPlugin;
 

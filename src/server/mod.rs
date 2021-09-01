@@ -1,14 +1,16 @@
+mod lobby;
 mod network;
 mod states;
 mod util;
 
 use crate::common::components::{Client, Position};
-use crate::server::network::NetworkPlugin;
-use crate::server::states::ServerState;
-use crate::server::util::PrintStateNamesPlugin;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::prelude::*;
+use lobby::LobbyPlugin;
+use network::NetworkPlugin;
+use states::ServerState;
 use std::time::Duration;
+use util::PrintStateNamesPlugin;
 
 enum InputEvent {
     Move(Client, Vec2),
@@ -28,6 +30,7 @@ impl Plugin for ServerPlugin {
         )
         .add_plugins(MinimalPlugins)
         .add_plugin(NetworkPlugin)
+        .add_plugin(LobbyPlugin)
         .add_plugin(PrintStateNamesPlugin)
         .add_system(handle_input_events_system.system());
     }
