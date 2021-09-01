@@ -4,9 +4,10 @@ use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use turbulence::message_channels::ChannelMessage;
 
+use crate::common::messages::{LobbyClientMessage, LobbyServerMessage};
 use crate::common::{
     components::{NetworkId, Position},
-    network_channels_setup, ActionMessage, ClientMessage, ServerMessage,
+    messages::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage},
 };
 use std::collections::HashMap;
 
@@ -61,8 +62,13 @@ fn handle_network_events_system(
                 Some(_connection) => {
                     info!("Connection successful");
 
-                    net.send_message(*handle, ClientMessage::Hello("John Doe".to_owned()))
-                        .expect("Could not send hello");
+                    net.send_message(
+                        *handle,
+                        ClientMessage::LobbyMessage(LobbyClientMessage::Join(
+                            "John Doe".to_owned(),
+                        )),
+                    )
+                    .expect("Could not send hello");
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
             }
@@ -151,13 +157,13 @@ fn read_server_message_channel_system(
 
         while let Some(message) = channels.recv::<ServerMessage>() {
             match message {
-                ServerMessage::Welcome(id) => {
+                ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(id)) => {
                     println!("Welcome message received: {:?}", id);
                 }
-                ServerMessage::SetHost(id) => {
+                ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(id)) => {
                     println!("Host now is: {:?}", id);
                 }
-                ServerMessage::PlayerJoined(name) => {
+                ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(name)) => {
                     println!("Player joined lobby: {}", name);
                 }
                 ServerMessage::InsertLocalPlayer(id) => {
@@ -166,7 +172,8 @@ fn read_server_message_channel_system(
                 ServerMessage::InsertPlayer(id) => {
                     events.send(InsertPlayerEvent::Remote(id));
                 }
-                ServerMessage::StartLoading => {}
+                ServerMessage::LobbyMessage(LobbyServerMessage::StartLoading) => {}
+                ServerMessage::LobbyMessage(LobbyServerMessage::PlayersList(_)) => {}
             }
         }
     }

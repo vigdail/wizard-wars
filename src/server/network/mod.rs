@@ -1,5 +1,8 @@
 use crate::common::components::{NetworkId, Position};
-use crate::common::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage};
+use crate::common::messages::{
+    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, LobbyServerMessage,
+    ServerMessage,
+};
 use crate::server::states::ServerState;
 use crate::server::InputEvent;
 use bevy::prelude::*;
@@ -75,7 +78,7 @@ fn read_network_channels_system(
 
         while let Some(message) = channels.recv::<ClientMessage>() {
             match message {
-                ClientMessage::Hello(name) => {
+                ClientMessage::LobbyMessage(LobbyClientMessage::Join(name)) => {
                     let network_id = NetworkId(ids.0);
                     ids.0 += 1;
 
@@ -88,13 +91,21 @@ fn read_network_channels_system(
                         .insert(Name::new(name))
                         .insert(network_id);
 
-                    to_send.push((*handle, ServerMessage::Welcome(network_id)));
-                    to_send.push((*handle, ServerMessage::SetHost(host.0.unwrap())));
+                    to_send.push((
+                        *handle,
+                        ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
+                    ));
+                    to_send.push((
+                        *handle,
+                        ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(host.0.unwrap())),
+                    ));
 
                     for (_, client, client_name) in clients.iter() {
                         to_send.push((
                             client.0,
-                            ServerMessage::PlayerJoined(client_name.as_str().to_owned()),
+                            ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
+                                client_name.as_str().to_owned(),
+                            )),
                         ));
                     }
                 }
@@ -103,8 +114,10 @@ fn read_network_channels_system(
                         input_events.send(InputEvent::Move(NetworkHandle(*handle), dir));
                     }
                 },
-                ClientMessage::StartGame => {}
+                ClientMessage::LobbyMessage(LobbyClientMessage::StartGame) => {}
                 ClientMessage::Loaded => {}
+                ClientMessage::LobbyMessage(LobbyClientMessage::ChangeReadyState(_)) => {}
+                ClientMessage::LobbyMessage(LobbyClientMessage::GetPlayerList) => {}
             }
         }
     }
