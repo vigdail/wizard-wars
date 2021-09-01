@@ -70,7 +70,7 @@ fn read_network_channels_system(
     mut host: ResMut<Host>,
     mut input_events: EventWriter<InputEvent>,
     mut ids: ResMut<CurrentId>,
-    clients: Query<(Entity, &NetworkHandle, &Name)>,
+    clients: Query<(&NetworkHandle, &Name)>,
 ) {
     let mut to_send = Vec::new();
     for (handle, connection) in net.connections.iter_mut() {
@@ -78,46 +78,50 @@ fn read_network_channels_system(
 
         while let Some(message) = channels.recv::<ClientMessage>() {
             match message {
-                ClientMessage::LobbyMessage(LobbyClientMessage::Join(name)) => {
-                    let network_id = NetworkId(ids.0);
-                    ids.0 += 1;
+                ClientMessage::LobbyMessage(msg) => match msg {
+                    LobbyClientMessage::Join(name) => {
+                        let network_id = NetworkId(ids.0);
+                        ids.0 += 1;
 
-                    if host.0.is_none() {
-                        host.0 = Some(network_id);
-                    }
+                        if host.0.is_none() {
+                            host.0 = Some(network_id);
+                        }
 
-                    cmd.spawn()
-                        .insert(NetworkHandle(*handle))
-                        .insert(Name::new(name))
-                        .insert(network_id);
+                        cmd.spawn()
+                            .insert(NetworkHandle(*handle))
+                            .insert(Name::new(name))
+                            .insert(network_id);
 
-                    to_send.push((
-                        *handle,
-                        ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
-                    ));
-                    to_send.push((
-                        *handle,
-                        ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(host.0.unwrap())),
-                    ));
-
-                    for (_, client, client_name) in clients.iter() {
                         to_send.push((
-                            client.0,
-                            ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
-                                client_name.as_str().to_owned(),
+                            *handle,
+                            ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
+                        ));
+                        to_send.push((
+                            *handle,
+                            ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(
+                                host.0.unwrap(),
                             )),
                         ));
+
+                        for (client, client_name) in clients.iter() {
+                            to_send.push((
+                                client.0,
+                                ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
+                                    client_name.as_str().to_owned(),
+                                )),
+                            ));
+                        }
                     }
-                }
+                    LobbyClientMessage::ChangeReadyState(_) => todo!(),
+                    LobbyClientMessage::GetPlayerList => todo!(),
+                    LobbyClientMessage::StartGame => todo!(),
+                },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {
                         input_events.send(InputEvent::Move(NetworkHandle(*handle), dir));
                     }
                 },
-                ClientMessage::LobbyMessage(LobbyClientMessage::StartGame) => {}
                 ClientMessage::Loaded => {}
-                ClientMessage::LobbyMessage(LobbyClientMessage::ChangeReadyState(_)) => {}
-                ClientMessage::LobbyMessage(LobbyClientMessage::GetPlayerList) => {}
             }
         }
     }

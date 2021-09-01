@@ -157,23 +157,25 @@ fn read_server_message_channel_system(
 
         while let Some(message) = channels.recv::<ServerMessage>() {
             match message {
-                ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(id)) => {
-                    println!("Welcome message received: {:?}", id);
-                }
-                ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(id)) => {
-                    println!("Host now is: {:?}", id);
-                }
-                ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(name)) => {
-                    println!("Player joined lobby: {}", name);
-                }
+                ServerMessage::LobbyMessage(msg) => match msg {
+                    LobbyServerMessage::Welcome(id) => {
+                        println!("Welcome message received: {:?}", id);
+                    }
+                    LobbyServerMessage::SetHost(id) => {
+                        println!("Host now is: {:?}", id);
+                    }
+                    LobbyServerMessage::PlayerJoined(name) => {
+                        println!("Player joined lobby: {}", name);
+                    }
+                    LobbyServerMessage::StartLoading => {}
+                    LobbyServerMessage::PlayersList(_) => {}
+                },
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
                 }
                 ServerMessage::InsertPlayer(id) => {
                     events.send(InsertPlayerEvent::Remote(id));
                 }
-                ServerMessage::LobbyMessage(LobbyServerMessage::StartLoading) => {}
-                ServerMessage::LobbyMessage(LobbyServerMessage::PlayersList(_)) => {}
             }
         }
     }
