@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use turbulence::message_channels::ChannelMessage;
 
-use crate::common::messages::{LobbyClientMessage, LobbyServerMessage};
+use crate::common::messages::{LobbyClientMessage, LobbyServerMessage, ReadyState};
 use crate::common::{
     components::{NetworkId, Position},
     messages::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage},
@@ -167,8 +167,11 @@ fn read_server_message_channel_system(
                     LobbyServerMessage::PlayerJoined(name) => {
                         println!("Player joined lobby: {}", name);
                     }
-                    LobbyServerMessage::StartLoading => {}
-                    LobbyServerMessage::PlayersList(_) => {}
+                    LobbyServerMessage::ReadyState(ready) => {
+                        info!("Server Ready state changed: {:?}", ready);
+                    }
+                    LobbyServerMessage::StartLoading => todo!(),
+                    LobbyServerMessage::PlayersList(_) => todo!(),
                 },
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
@@ -202,6 +205,14 @@ fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     }
     if input.pressed(KeyCode::D) {
         dir.x += speed;
+    }
+    if input.just_pressed(KeyCode::Return) {
+        net.broadcast_message(ClientMessage::LobbyMessage(
+            LobbyClientMessage::ChangeReadyState(ReadyState::Ready),
+        ));
+    }
+    if input.just_pressed(KeyCode::Space) {
+        net.broadcast_message(ClientMessage::LobbyMessage(LobbyClientMessage::StartGame));
     }
 
     if dir.length() > 0.0 {

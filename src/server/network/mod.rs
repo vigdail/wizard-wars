@@ -73,17 +73,19 @@ fn read_network_channels_system(
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
+        let client = Client(*handle);
         while let Some(message) = channels.recv::<ClientMessage>() {
             match message {
                 ClientMessage::LobbyMessage(msg) => match msg {
-                    LobbyClientMessage::Join(name) => {
-                        let client = Client(*handle);
-                        lobby_events
-                            .send(LobbyEvent::new(client, LobbyEventEntry::ClientJoined(name)))
-                    }
-                    LobbyClientMessage::ChangeReadyState(_) => todo!(),
+                    LobbyClientMessage::Join(name) => lobby_events
+                        .send(LobbyEvent::new(client, LobbyEventEntry::ClientJoined(name))),
+                    LobbyClientMessage::ChangeReadyState(ready) => lobby_events.send(
+                        LobbyEvent::new(client, LobbyEventEntry::ReadyChanged(ready)),
+                    ),
                     LobbyClientMessage::GetPlayerList => todo!(),
-                    LobbyClientMessage::StartGame => todo!(),
+                    LobbyClientMessage::StartGame => {
+                        lobby_events.send(LobbyEvent::new(client, LobbyEventEntry::StartGame));
+                    }
                 },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {

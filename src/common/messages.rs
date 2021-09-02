@@ -7,8 +7,8 @@ use bevy_networking_turbulence::{
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum PlayerReadyState {
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ReadyState {
     Ready,
     NotReady,
 }
@@ -16,7 +16,7 @@ pub enum PlayerReadyState {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyClientMessage {
     Join(String),
-    ChangeReadyState(PlayerReadyState),
+    ChangeReadyState(ReadyState),
     GetPlayerList,
     StartGame,
 }
@@ -38,6 +38,7 @@ pub enum LobbyServerMessage {
     Welcome(NetworkId),
     PlayerJoined(String),
     PlayersList(Vec<String>),
+    ReadyState(ReadyState),
     SetHost(NetworkId),
     StartLoading,
 }

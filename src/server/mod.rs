@@ -5,6 +5,7 @@ mod util;
 
 use crate::common::components::{Client, Position};
 use bevy::app::ScheduleRunnerSettings;
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use lobby::LobbyPlugin;
 use network::NetworkPlugin;
@@ -29,6 +30,7 @@ impl Plugin for ServerPlugin {
             SystemSet::on_update(ServerState::Init).with_system(check_init_system.system()),
         )
         .add_plugins(MinimalPlugins)
+        .add_plugin(LogPlugin::default())
         .add_plugin(NetworkPlugin)
         .add_plugin(LobbyPlugin)
         .add_plugin(PrintStateNamesPlugin)

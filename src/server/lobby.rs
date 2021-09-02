@@ -1,16 +1,13 @@
-use std::collections::HashMap;
-
-use crate::common::{
-    components::{Client, NetworkId},
-    messages::{LobbyServerMessage, PlayerReadyState, ServerMessage},
-    network::{Dest, Pack},
-};
-use bevy::prelude::*;
-
 use super::{
     network::{CurrentId, Host, ServerPacket},
     states::ServerState,
 };
+use crate::common::{
+    components::{Client, NetworkId},
+    messages::{LobbyServerMessage, ReadyState, ServerMessage},
+    network::{Dest, Pack},
+};
+use bevy::prelude::*;
 
 pub struct LobbyEvent {
     client: Client,
@@ -26,7 +23,7 @@ impl LobbyEvent {
 #[allow(dead_code)]
 pub enum LobbyEventEntry {
     ClientJoined(String),
-    ReadyChanged(PlayerReadyState),
+    ReadyChanged(ReadyState),
     StartGame,
 }
 
@@ -53,12 +50,8 @@ fn handle_lobby_events(
     mut host: ResMut<Host>,
     mut ids: ResMut<CurrentId>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(Entity, &Client, &NetworkId)>,
+    mut clients: Query<(Entity, &Client, &NetworkId, &mut ReadyState)>,
 ) {
-    let clients_map = clients
-        .iter()
-        .map(|(e, client, id)| (client, (e, id)))
-        .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
         let client = event.client;
         match &event.event {
@@ -75,6 +68,7 @@ fn handle_lobby_events(
                 cmd.spawn()
                     .insert(client)
                     .insert(client_name.clone())
+                    .insert(ReadyState::NotReady)
                     .insert(network_id);
 
                 packets.send(Pack::new(
@@ -93,11 +87,50 @@ fn handle_lobby_events(
                     Dest::AllExcept(client),
                 ));
             }
-            LobbyEventEntry::ReadyChanged(_ready) => todo!(),
+            LobbyEventEntry::ReadyChanged(ready) => {
+                for (_, &c, _, mut ready_state) in clients.iter_mut() {
+                    if c == client {
+                        *ready_state = *ready;
+                        info!("{:?} ready state is {:?}", client, ready_state);
+                    }
+                }
+
+                let can_start = clients
+                    .iter_mut()
+                    .all(|(_, _, _, ready_state)| *ready_state == ReadyState::Ready);
+
+                let lobby_ready_state = if can_start {
+                    ReadyState::Ready
+                } else {
+                    ReadyState::NotReady
+                };
+
+                packets.send(Pack::new(
+                    ServerMessage::LobbyMessage(LobbyServerMessage::ReadyState(lobby_ready_state)),
+                    Dest::All,
+                ));
+            }
             LobbyEventEntry::StartGame => {
-                if host.0.is_some() && host.0 == clients_map.get(&client).map(|(_, &id)| id) {
-                    // TODO: check if all players are ready
-                    start_game_events.send(StartGameEvent);
+                let client_id =
+                    clients.iter_mut().find_map(
+                        |(_, &c, id, _)| {
+                            if c == client {
+                                Some(*id)
+                            } else {
+                                None
+                            }
+                        },
+                    );
+                if host.0.is_some() && host.0 == client_id {
+                    let can_start = clients
+                        .iter_mut()
+                        .all(|(_, _, _, ready_state)| *ready_state == ReadyState::Ready);
+
+                    if can_start {
+                        start_game_events.send(StartGameEvent);
+                    } else {
+                        error!("Cannot start game: some clients are not ready");
+                    }
                 } else {
                     error!(
                         "The client ({:?}) is not a host (cannot start game)",
