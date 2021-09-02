@@ -1,0 +1,4 @@
+[alias]
+client = "run --bin client"
+server = "run --bin server"
+watch-server = "watch -x server"
