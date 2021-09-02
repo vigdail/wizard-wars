@@ -8,11 +8,23 @@ use bevy::prelude::*;
 
 use super::{network::Host, states::ServerState};
 
+pub struct LobbyEvent {
+    client: Client,
+    event: LobbyEventEntry,
+}
+
+impl LobbyEvent {
+    #[allow(dead_code)]
+    pub fn new(client: Client, event: LobbyEventEntry) -> Self {
+        Self { client, event }
+    }
+}
+
 #[allow(dead_code)]
-pub enum LobbyEvent {
-    ClientJoined(Client, String),
-    ReadyChanged(Client, PlayerReadyState),
-    StartGame(Client),
+pub enum LobbyEventEntry {
+    ClientJoined(String),
+    ReadyChanged(PlayerReadyState),
+    StartGame,
 }
 
 pub struct StartGameEvent;
@@ -43,13 +55,14 @@ fn handle_lobby_events(
         .map(|(e, client, id)| (client, (e, id)))
         .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        match event {
-            LobbyEvent::ClientJoined(_client, _name) => {
+        let client = event.client;
+        match &event.event {
+            LobbyEventEntry::ClientJoined(_name) => {
                 // create client entity, etc.
             }
-            LobbyEvent::ReadyChanged(_client, _ready) => todo!(),
-            LobbyEvent::StartGame(client) => {
-                if host.0.is_some() && host.0 == clients_map.get(client).map(|(_, &id)| id) {
+            LobbyEventEntry::ReadyChanged(_ready) => todo!(),
+            LobbyEventEntry::StartGame => {
+                if host.0.is_some() && host.0 == clients_map.get(&client).map(|(_, &id)| id) {
                     // TODO: check if all players are ready
                     start_game_events.send(StartGameEvent);
                 } else {
