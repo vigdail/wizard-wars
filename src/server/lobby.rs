@@ -2,11 +2,15 @@ use std::collections::HashMap;
 
 use crate::common::{
     components::{Client, NetworkId},
-    messages::PlayerReadyState,
+    messages::{LobbyServerMessage, PlayerReadyState, ServerMessage},
+    network::{Dest, Pack},
 };
 use bevy::prelude::*;
 
-use super::{network::Host, states::ServerState};
+use super::{
+    network::{CurrentId, Host, ServerPacket},
+    states::ServerState,
+};
 
 pub struct LobbyEvent {
     client: Client,
@@ -14,7 +18,6 @@ pub struct LobbyEvent {
 }
 
 impl LobbyEvent {
-    #[allow(dead_code)]
     pub fn new(client: Client, event: LobbyEventEntry) -> Self {
         Self { client, event }
     }
@@ -44,10 +47,12 @@ impl Plugin for LobbyPlugin {
 }
 
 fn handle_lobby_events(
-    mut _cmd: Commands,
+    mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
     mut start_game_events: EventWriter<StartGameEvent>,
-    host: Res<Host>,
+    mut host: ResMut<Host>,
+    mut ids: ResMut<CurrentId>,
+    mut packets: EventWriter<ServerPacket>,
     clients: Query<(Entity, &Client, &NetworkId)>,
 ) {
     let clients_map = clients
@@ -57,8 +62,36 @@ fn handle_lobby_events(
     for event in lobby_evets.iter() {
         let client = event.client;
         match &event.event {
-            LobbyEventEntry::ClientJoined(_name) => {
-                // create client entity, etc.
+            LobbyEventEntry::ClientJoined(name) => {
+                let network_id = NetworkId(ids.0);
+                ids.0 += 1;
+
+                if host.0.is_none() {
+                    host.0 = Some(network_id);
+                }
+
+                let client_name = Name::new(name.clone());
+
+                cmd.spawn()
+                    .insert(client)
+                    .insert(client_name.clone())
+                    .insert(network_id);
+
+                packets.send(Pack::new(
+                    ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
+                    Dest::Single(client),
+                ));
+                packets.send(Pack::new(
+                    ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(host.0.unwrap())),
+                    Dest::Single(client),
+                ));
+
+                packets.send(Pack::new(
+                    ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
+                        client_name.as_str().to_owned(),
+                    )),
+                    Dest::AllExcept(client),
+                ));
             }
             LobbyEventEntry::ReadyChanged(_ready) => todo!(),
             LobbyEventEntry::StartGame => {

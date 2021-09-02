@@ -1,9 +1,9 @@
 use crate::common::components::{Client, NetworkId, Position};
 use crate::common::messages::{
-    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, LobbyServerMessage,
-    ServerMessage,
+    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, ServerMessage,
 };
 use crate::common::network::{Dest, Pack};
+use crate::server::lobby::{LobbyEvent, LobbyEventEntry};
 use crate::server::states::ServerState;
 use crate::server::InputEvent;
 use bevy::prelude::*;
@@ -11,17 +11,20 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 #[derive(Default)]
-pub struct CurrentId(u32);
+pub struct CurrentId(pub u32);
 
 #[derive(Default)]
 pub struct Host(pub Option<NetworkId>);
 
 pub struct NetworkPlugin;
 
+pub type ServerPacket = Pack<ServerMessage>;
+
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(CurrentId::default())
             .insert_resource(Host::default())
+            .add_event::<ServerPacket>()
             .add_plugin(NetworkingPlugin::default())
             .add_system_set(
                 SystemSet::on_enter(ServerState::Init)
@@ -30,6 +33,7 @@ impl Plugin for NetworkPlugin {
             )
             .add_system(handle_network_events_system.system())
             .add_system(read_network_channels_system.system())
+            .add_system(send_packets_system.system())
             .add_system(broadcast_changes_system.system());
     }
 }
@@ -62,15 +66,10 @@ fn handle_network_events_system(
 }
 
 fn read_network_channels_system(
-    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
-    mut host: ResMut<Host>,
     mut input_events: EventWriter<InputEvent>,
-    mut ids: ResMut<CurrentId>,
-    clients: Query<&Client>,
+    mut lobby_events: EventWriter<LobbyEvent>,
 ) {
-    let mut packs = Vec::<Pack<ServerMessage>>::new();
-
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
@@ -78,38 +77,9 @@ fn read_network_channels_system(
             match message {
                 ClientMessage::LobbyMessage(msg) => match msg {
                     LobbyClientMessage::Join(name) => {
-                        let network_id = NetworkId(ids.0);
-                        ids.0 += 1;
-
-                        if host.0.is_none() {
-                            host.0 = Some(network_id);
-                        }
-
                         let client = Client(*handle);
-                        let client_name = Name::new(name);
-
-                        cmd.spawn()
-                            .insert(client)
-                            .insert(client_name.clone())
-                            .insert(network_id);
-
-                        packs.push(Pack::new(
-                            ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
-                            Dest::Single(client),
-                        ));
-                        packs.push(Pack::new(
-                            ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(
-                                host.0.unwrap(),
-                            )),
-                            Dest::Single(client),
-                        ));
-
-                        packs.push(Pack::new(
-                            ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
-                                client_name.as_str().to_owned(),
-                            )),
-                            Dest::AllExcept(client),
-                        ));
+                        lobby_events
+                            .send(LobbyEvent::new(client, LobbyEventEntry::ClientJoined(name)))
                     }
                     LobbyClientMessage::ChangeReadyState(_) => todo!(),
                     LobbyClientMessage::GetPlayerList => todo!(),
@@ -124,16 +94,22 @@ fn read_network_channels_system(
             }
         }
     }
+}
 
-    for pack in packs.drain(..) {
-        match pack.dest {
+fn send_packets_system(
+    mut net: ResMut<NetworkResource>,
+    mut events: EventReader<ServerPacket>,
+    clients: Query<&Client>,
+) {
+    for pack in events.iter() {
+        match &pack.dest {
             Dest::Single(client) => {
-                net.send_message(client.0, pack.msg)
+                net.send_message(client.0, pack.msg.clone())
                     .expect("Unable to send message");
             }
             Dest::AllExcept(exclude_client) => {
                 for &client in clients.iter() {
-                    if exclude_client != client {
+                    if exclude_client != &client {
                         net.send_message(client.0, pack.msg.clone())
                             .expect("Unable to send message");
                     }
