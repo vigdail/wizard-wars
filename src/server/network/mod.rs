@@ -117,12 +117,7 @@ fn send_packets_system(
                     }
                 }
             }
-            Dest::All => {
-                for client in clients.iter() {
-                    net.send_message(client.0, pack.msg.clone())
-                        .expect("Unable to send message");
-                }
-            }
+            Dest::All => net.broadcast_message(pack.msg.clone()),
         }
     }
 }
