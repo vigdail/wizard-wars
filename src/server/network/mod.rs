@@ -42,7 +42,7 @@ pub fn server_setup_system(mut net: ResMut<NetworkResource>) {
     let ip_address = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
     let socket_address = SocketAddr::new(ip_address, 9001);
     net.listen(socket_address, None, None);
-    println!("Listening...");
+    info!("Listening...");
 }
 
 fn handle_network_events_system(
@@ -53,12 +53,12 @@ fn handle_network_events_system(
         match event {
             NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
                 Some(_connection) => {
-                    println!("New connection handle: {:?}", &handle);
+                    info!("New connection handle: {:?}", &handle);
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
             },
             NetworkEvent::Disconnected(handle) => {
-                println!("Disconnected handle: {:?}", &handle);
+                info!("Disconnected handle: {:?}", &handle);
             }
             _ => {}
         }

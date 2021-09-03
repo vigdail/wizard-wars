@@ -25,5 +25,5 @@ impl std::fmt::Display for ServerState {
 }
 
 pub fn print_state_name_system(state: Res<State<ServerState>>) {
-    println!("Current state: {}", state.current());
+    info!("Current state: {}", state.current());
 }

@@ -115,11 +115,11 @@ fn spawn_player_system(
     for event in events.iter() {
         let (transform, local, id) = match event {
             InsertPlayerEvent::Remote(id) => {
-                println!("Inserting remote player");
+                info!("Inserting remote player");
                 (Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0), None, *id)
             }
             InsertPlayerEvent::Local(id) => {
-                println!("Inserting local player");
+                info!("Inserting local player");
                 (
                     Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
                     Some(LocalPlayer),
@@ -159,13 +159,13 @@ fn read_server_message_channel_system(
             match message {
                 ServerMessage::LobbyMessage(msg) => match msg {
                     LobbyServerMessage::Welcome(id) => {
-                        println!("Welcome message received: {:?}", id);
+                        info!("Welcome message received: {:?}", id);
                     }
                     LobbyServerMessage::SetHost(id) => {
-                        println!("Host now is: {:?}", id);
+                        info!("Host now is: {:?}", id);
                     }
                     LobbyServerMessage::PlayerJoined(name) => {
-                        println!("Player joined lobby: {}", name);
+                        info!("Player joined lobby: {}", name);
                     }
                     LobbyServerMessage::ReadyState(ready) => {
                         info!("Server Ready state changed: {:?}", ready);
@@ -236,7 +236,7 @@ fn read_component_channel_system<C: ChannelMessage>(
                     cmd.entity(*entity).insert(component);
                 }
                 None => {
-                    println!("No player found");
+                    warn!("No player found");
                 }
             }
         }
