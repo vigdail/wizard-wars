@@ -5,7 +5,6 @@ name = "wizardwars_shared"
 version = "0.1.0"
 
 [dependencies]
-bevy = {version = "0.5.0", features = ["dynamic"]}
+bevy = {version = "0.5.0", default-features = false, features = ["dynamic"]}
 bevy_networking_turbulence = "0.3.3"
 serde = {version = "1.0.130", features = ["derive"]}
-turbulence = "0.3.0"

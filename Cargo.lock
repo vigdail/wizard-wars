@@ -3817,7 +3817,6 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "serde",
- "turbulence",
 ]
 
 [[package]]
