@@ -3789,7 +3789,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "wizard-wars"
+name = "wizardwars_client"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_networking_turbulence",
+ "serde",
+ "turbulence",
+ "wizardwars_shared",
+]
+
+[[package]]
+name = "wizardwars_server"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy_networking_turbulence",
+ "serde",
+ "turbulence",
+ "wizardwars_shared",
+]
+
+[[package]]
+name = "wizardwars_shared"
 version = "0.1.0"
 dependencies = [
  "bevy",

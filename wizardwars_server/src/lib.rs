@@ -3,7 +3,6 @@ mod network;
 mod states;
 mod util;
 
-use crate::common::components::{Client, Position};
 use bevy::app::ScheduleRunnerSettings;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
@@ -12,6 +11,7 @@ use network::NetworkPlugin;
 use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
+use wizardwars_shared::components::{Client, Position};
 
 enum InputEvent {
     Move(Client, Vec2),

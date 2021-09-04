@@ -1,16 +1,5 @@
-[package]
-name = "wizard-wars"
-version = "0.1.0"
-authors = ["vigdail <vigdail.dev@gmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-bevy = { version = "0.5.0", features = ["dynamic"] }
-bevy_networking_turbulence = "0.3.3"
-serde = { version = "1.0.130", features = ["derive"] }
-turbulence = "0.3.0"
+[workspace]
+members = ["wizardwars_shared", "wizardwars_client", "wizardwars_server"]
 
 [profile.dev.package."*"]
 opt-level = 3

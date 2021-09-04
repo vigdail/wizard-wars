@@ -4,12 +4,12 @@ use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use turbulence::message_channels::ChannelMessage;
 
-use crate::common::messages::{LobbyClientMessage, LobbyServerMessage, ReadyState};
-use crate::common::{
+use std::collections::HashMap;
+use wizardwars_shared::messages::{LobbyClientMessage, LobbyServerMessage, ReadyState};
+use wizardwars_shared::{
     components::{NetworkId, Position},
     messages::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage},
 };
-use std::collections::HashMap;
 
 pub struct ClientPlugin;
 

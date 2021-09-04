@@ -1,4 +1,4 @@
-use crate::server::states::{print_state_name_system, ServerState};
+use crate::states::{print_state_name_system, ServerState};
 use bevy::prelude::*;
 
 pub struct PrintStateNamesPlugin;

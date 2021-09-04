@@ -2,12 +2,12 @@ use super::{
     network::{CurrentId, Host, ServerPacket},
     states::ServerState,
 };
-use crate::common::{
+use bevy::prelude::*;
+use wizardwars_shared::{
     components::{Client, NetworkId},
     messages::{LobbyServerMessage, ReadyState, ServerMessage},
     network::{Dest, Pack},
 };
-use bevy::prelude::*;
 
 pub struct LobbyEvent {
     client: Client,
