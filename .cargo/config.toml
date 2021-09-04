@@ -1,4 +1,4 @@
 [alias]
-client = "run --bin client"
-server = "run --bin server"
+client = "run --bin client --manifest-path wizardwars_client/Cargo.toml"
+server = "run --bin server --manifest-path wizardwars_server/Cargo.toml"
 watch-server = "watch -x server"

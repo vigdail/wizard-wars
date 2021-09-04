@@ -1,4 +1,4 @@
-use crate::common::components::{NetworkId, Position};
+use crate::components::{NetworkId, Position};
 use bevy::prelude::*;
 use bevy_networking_turbulence::{
     ConnectionChannelsBuilder, MessageChannelMode, MessageChannelSettings, NetworkResource,

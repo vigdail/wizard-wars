@@ -1,14 +1,14 @@
-use crate::common::components::{Client, NetworkId, Position};
-use crate::common::messages::{
-    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, ServerMessage,
-};
-use crate::common::network::{Dest, Pack};
-use crate::server::lobby::{LobbyEvent, LobbyEventEntry};
-use crate::server::states::ServerState;
-use crate::server::InputEvent;
+use crate::lobby::{LobbyEvent, LobbyEventEntry};
+use crate::states::ServerState;
+use crate::InputEvent;
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use wizardwars_shared::components::{Client, NetworkId, Position};
+use wizardwars_shared::messages::{
+    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, ServerMessage,
+};
+use wizardwars_shared::network::{Dest, Pack};
 
 #[derive(Default)]
 pub struct CurrentId(pub u32);

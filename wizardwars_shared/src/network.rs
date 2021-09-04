@@ -1,4 +1,4 @@
-use super::components::Client;
+use crate::components::Client;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
