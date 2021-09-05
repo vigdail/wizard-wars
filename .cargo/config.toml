@@ -1,4 +1,4 @@
 [alias]
-client = "run --bin client -p wizardwars_client"
-server = "run --bin server -p wizardwars_server"
+client = "run -p wizardwars_client"
+server = "run -p wizardwars_server"
 watch-server = "watch -x server"
