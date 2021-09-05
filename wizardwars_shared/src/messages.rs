@@ -50,9 +50,21 @@ pub enum LoadingServerMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TimerInfo {
+    pub duration: Duration,
+    pub elapsed: Duration,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ShoppingServerMessage {
+    Timer(TimerInfo),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
     Lobby(LobbyServerMessage),
     Loading(LoadingServerMessage),
+    Shopping(ShoppingServerMessage),
     InsertPlayer(NetworkId),
     InsertLocalPlayer(NetworkId),
 }

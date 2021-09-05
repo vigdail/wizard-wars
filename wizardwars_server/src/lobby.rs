@@ -1,5 +1,5 @@
 use super::{
-    network::{CurrentId, Host, ServerPacket},
+    network::{Host, IdFactory, ServerPacket},
     states::ServerState,
 };
 use bevy::prelude::*;
@@ -48,7 +48,7 @@ fn handle_lobby_events(
     mut lobby_evets: EventReader<LobbyEvent>,
     mut start_game_events: EventWriter<StartGameEvent>,
     mut host: ResMut<Host>,
-    mut ids: ResMut<CurrentId>,
+    mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
     mut clients: Query<(Entity, &Client, &NetworkId, &mut ReadyState)>,
 ) {
@@ -56,8 +56,7 @@ fn handle_lobby_events(
         let client = event.client;
         match &event.event {
             LobbyEventEntry::ClientJoined(name) => {
-                let network_id = NetworkId(ids.0);
-                ids.0 += 1;
+                let network_id = id_factory.generate();
 
                 if host.0.is_none() {
                     host.0 = Some(network_id);

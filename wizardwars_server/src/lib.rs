@@ -1,14 +1,17 @@
 mod loading;
 mod lobby;
 mod network;
+mod shopping;
 mod states;
 mod util;
 
 use bevy::app::ScheduleRunnerSettings;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
+use loading::WaitLoadingPlugin;
 use lobby::LobbyPlugin;
 use network::NetworkPlugin;
+use shopping::{ShoppingConfig, ShoppingTimerPlugin};
 use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
@@ -25,6 +28,9 @@ impl Plugin for ServerPlugin {
         app.insert_resource(ScheduleRunnerSettings::run_loop(Duration::from_millis(
             1000 / 60,
         )))
+        .insert_resource(ShoppingConfig {
+            time_in_seconds: 10.0,
+        })
         .add_event::<InputEvent>()
         .add_state(ServerState::Init)
         .add_system_set(
@@ -34,6 +40,8 @@ impl Plugin for ServerPlugin {
         .add_plugin(LogPlugin::default())
         .add_plugin(NetworkPlugin)
         .add_plugin(LobbyPlugin)
+        .add_plugin(WaitLoadingPlugin)
+        .add_plugin(ShoppingTimerPlugin)
         .add_plugin(PrintStateNamesPlugin)
         .add_system(handle_input_events_system.system());
     }

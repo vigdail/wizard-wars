@@ -1,3 +1,4 @@
+use crate::loading::LoadCompleteEvent;
 use crate::lobby::{LobbyEvent, LobbyEventEntry};
 use crate::states::ServerState;
 use crate::InputEvent;
@@ -11,7 +12,14 @@ use wizardwars_shared::messages::{
 use wizardwars_shared::network::{Dest, Pack};
 
 #[derive(Default)]
-pub struct CurrentId(pub u32);
+pub struct IdFactory(u32);
+
+impl IdFactory {
+    pub fn generate(&mut self) -> NetworkId {
+        self.0 += 1;
+        NetworkId(self.0)
+    }
+}
 
 #[derive(Default)]
 pub struct Host(pub Option<NetworkId>);
@@ -22,7 +30,7 @@ pub type ServerPacket = Pack<ServerMessage>;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.insert_resource(CurrentId::default())
+        app.insert_resource(IdFactory::default())
             .insert_resource(Host::default())
             .add_event::<ServerPacket>()
             .add_plugin(NetworkingPlugin::default())
@@ -69,6 +77,7 @@ fn read_network_channels_system(
     mut net: ResMut<NetworkResource>,
     mut input_events: EventWriter<InputEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
+    mut loading_events: EventWriter<LoadCompleteEvent>,
 ) {
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
@@ -92,7 +101,9 @@ fn read_network_channels_system(
                         input_events.send(InputEvent::Move(Client(*handle), dir));
                     }
                 },
-                ClientMessage::Loaded => {}
+                ClientMessage::Loaded => {
+                    loading_events.send(LoadCompleteEvent { client });
+                }
             }
         }
     }

@@ -8,7 +8,7 @@ use wizardwars_shared::{
 use crate::{network::ServerPacket, states::ServerState};
 
 pub struct LoadCompleteEvent {
-    client: Client,
+    pub client: Client,
 }
 
 struct Loading;

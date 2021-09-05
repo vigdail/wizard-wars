@@ -152,6 +152,9 @@ fn read_server_message_channel_system(
     mut net: ResMut<NetworkResource>,
     mut events: EventWriter<InsertPlayerEvent>,
 ) {
+    // TODO: remove this
+    let mut is_loaded = false;
+
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
@@ -170,11 +173,17 @@ fn read_server_message_channel_system(
                     LobbyServerMessage::ReadyState(ready) => {
                         info!("Server Ready state changed: {:?}", ready);
                     }
-                    LobbyServerMessage::StartLoading => todo!(),
+                    LobbyServerMessage::StartLoading => {
+                        info!("Start loading");
+                        is_loaded = true;
+                    }
                     LobbyServerMessage::PlayersList(_) => todo!(),
                 },
                 ServerMessage::Loading(e) => {
                     info!("Loading event received {:?}", e);
+                }
+                ServerMessage::Shopping(e) => {
+                    info!("Shopping event received {:?}", e);
                 }
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
@@ -184,6 +193,9 @@ fn read_server_message_channel_system(
                 }
             }
         }
+    }
+    if is_loaded {
+        net.broadcast_message(ClientMessage::Loaded);
     }
 }
 
