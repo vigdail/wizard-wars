@@ -157,7 +157,7 @@ fn read_server_message_channel_system(
 
         while let Some(message) = channels.recv::<ServerMessage>() {
             match message {
-                ServerMessage::LobbyMessage(msg) => match msg {
+                ServerMessage::Lobby(msg) => match msg {
                     LobbyServerMessage::Welcome(id) => {
                         info!("Welcome message received: {:?}", id);
                     }
@@ -173,6 +173,9 @@ fn read_server_message_channel_system(
                     LobbyServerMessage::StartLoading => todo!(),
                     LobbyServerMessage::PlayersList(_) => todo!(),
                 },
+                ServerMessage::Loading(e) => {
+                    info!("Loading event received {:?}", e);
+                }
                 ServerMessage::InsertLocalPlayer(id) => {
                     events.send(InsertPlayerEvent::Local(id));
                 }

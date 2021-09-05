@@ -1,3 +1,4 @@
+mod loading;
 mod lobby;
 mod network;
 mod states;

@@ -72,16 +72,16 @@ fn handle_lobby_events(
                     .insert(network_id);
 
                 packets.send(Pack::new(
-                    ServerMessage::LobbyMessage(LobbyServerMessage::Welcome(network_id)),
+                    ServerMessage::Lobby(LobbyServerMessage::Welcome(network_id)),
                     Dest::Single(client),
                 ));
                 packets.send(Pack::new(
-                    ServerMessage::LobbyMessage(LobbyServerMessage::SetHost(host.0.unwrap())),
+                    ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
                     Dest::Single(client),
                 ));
 
                 packets.send(Pack::new(
-                    ServerMessage::LobbyMessage(LobbyServerMessage::PlayerJoined(
+                    ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
                         client_name.as_str().to_owned(),
                     )),
                     Dest::AllExcept(client),
@@ -106,7 +106,7 @@ fn handle_lobby_events(
                 };
 
                 packets.send(Pack::new(
-                    ServerMessage::LobbyMessage(LobbyServerMessage::ReadyState(lobby_ready_state)),
+                    ServerMessage::Lobby(LobbyServerMessage::ReadyState(lobby_ready_state)),
                     Dest::All,
                 ));
             }

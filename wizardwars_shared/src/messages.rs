@@ -44,8 +44,15 @@ pub enum LobbyServerMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum LoadingServerMessage {
+    PlayerLoaded(NetworkId),
+    LoadingComplete,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ServerMessage {
-    LobbyMessage(LobbyServerMessage),
+    Lobby(LobbyServerMessage),
+    Loading(LoadingServerMessage),
     InsertPlayer(NetworkId),
     InsertLocalPlayer(NetworkId),
 }
