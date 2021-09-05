@@ -86,7 +86,7 @@ fn check_players_loading(
     clients: Query<Option<&Loading>, With<Client>>,
     mut state: ResMut<State<ServerState>>,
 ) {
-    let all_loaded = clients.iter().all(|loading| !loading.is_some());
+    let all_loaded = clients.iter().all(|loading| loading.is_none());
     if all_loaded {
         state
             .set(ServerState::Shopping)
