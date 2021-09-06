@@ -18,7 +18,7 @@ impl SpawnPointsBuilder {
         Self { count, points }
     }
 
-    pub fn with_circle_points<'a>(&'a mut self, radius: f32) -> &'a mut Self {
+    pub fn with_circle_points(&mut self, radius: f32) -> &mut Self {
         self.points = (0..self.count)
             .map(|i| {
                 let angle = (i as f32 / self.count as f32) * PI * 2.0;
