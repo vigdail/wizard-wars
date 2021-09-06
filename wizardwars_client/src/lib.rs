@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
+use bevy::math::bool;
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use turbulence::message_channels::ChannelMessage;
@@ -15,9 +16,10 @@ pub struct ClientPlugin;
 
 pub struct LocalPlayer;
 
-pub enum InsertPlayerEvent {
-    Remote(NetworkId, Vec3),
-    Local(NetworkId, Vec3),
+pub struct InsertPlayerEvent {
+    id: NetworkId,
+    position: Vec3,
+    is_local: bool,
 }
 
 impl Plugin for ClientPlugin {
@@ -113,16 +115,12 @@ fn spawn_player_system(
     let width = 0.5;
 
     for event in events.iter() {
-        let (position, local, id) = match event {
-            InsertPlayerEvent::Remote(id, position) => {
-                info!("Inserting remote player");
-                (position, None, *id)
-            }
-            InsertPlayerEvent::Local(id, position) => {
-                info!("Inserting local player");
-                (position, Some(LocalPlayer), *id)
-            }
-        };
+        let InsertPlayerEvent {
+            id,
+            position,
+            is_local,
+        } = *event;
+
         let mut entity = cmd.spawn_bundle(PbrBundle {
             mesh: meshes.add(Mesh::from(shape::Box {
                 min_x: -width / 2.0,
@@ -136,9 +134,8 @@ fn spawn_player_system(
             material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
             ..Default::default()
         });
-        entity.insert(*position);
         entity.insert(id);
-        if local.is_some() {
+        if is_local {
             entity.insert(LocalPlayer);
         }
     }
@@ -182,10 +179,18 @@ fn read_server_message_channel_system(
                     info!("Shopping event received {:?}", e);
                 }
                 ServerMessage::InsertLocalPlayer(id, position) => {
-                    events.send(InsertPlayerEvent::Local(id, position));
+                    events.send(InsertPlayerEvent {
+                        id,
+                        position,
+                        is_local: true,
+                    });
                 }
                 ServerMessage::InsertPlayer(id, position) => {
-                    events.send(InsertPlayerEvent::Remote(id, position));
+                    events.send(InsertPlayerEvent {
+                        id,
+                        position,
+                        is_local: false,
+                    });
                 }
             }
         }
