@@ -1,11 +1,14 @@
+use crate::{
+    arena::{ArenaBuilder, SpawnPointsBuilder},
+    network::ServerPacket,
+    states::ServerState,
+};
 use bevy::prelude::*;
 use wizardwars_shared::{
     components::{Client, NetworkId},
     messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
     network::Dest,
 };
-
-use crate::{network::ServerPacket, states::ServerState};
 
 pub struct LoadCompleteEvent {
     pub client: Client,
@@ -19,7 +22,9 @@ impl Plugin for WaitLoadingPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<LoadCompleteEvent>()
             .add_system_set(
-                SystemSet::on_enter(ServerState::WaitLoading).with_system(on_enter.system()),
+                SystemSet::on_enter(ServerState::WaitLoading)
+                    .with_system(notify_clients.system())
+                    .with_system(create_arena.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::WaitLoading).with_system(on_exit.system()),
@@ -32,7 +37,7 @@ impl Plugin for WaitLoadingPlugin {
     }
 }
 
-fn on_enter(
+fn notify_clients(
     mut cmd: Commands,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<Entity, With<Client>>,
@@ -45,6 +50,18 @@ fn on_enter(
         ServerMessage::Lobby(LobbyServerMessage::StartLoading),
         Dest::All,
     ));
+}
+
+fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
+    let clients_count = clients.iter().count() as u32;
+
+    let mut spawn_points = SpawnPointsBuilder::new(clients_count);
+    spawn_points.with_circle_points(1.0);
+    let mut arena = ArenaBuilder::new();
+    arena.with_spawn_points(spawn_points);
+    let arena = arena.build();
+
+    cmd.insert_resource(arena);
 }
 
 fn on_exit(mut packets: EventWriter<ServerPacket>) {

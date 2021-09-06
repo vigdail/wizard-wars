@@ -100,7 +100,7 @@ fn read_network_channels_system(
                 },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {
-                        input_events.send(InputEvent::Move(Client(*handle), dir));
+                        input_events.send(InputEvent::Move(client, dir));
                     }
                 },
                 ClientMessage::Loaded => {

@@ -16,8 +16,8 @@ pub struct ClientPlugin;
 pub struct LocalPlayer;
 
 pub enum InsertPlayerEvent {
-    Remote(NetworkId),
-    Local(NetworkId),
+    Remote(NetworkId, Vec3),
+    Local(NetworkId, Vec3),
 }
 
 impl Plugin for ClientPlugin {
@@ -113,18 +113,14 @@ fn spawn_player_system(
     let width = 0.5;
 
     for event in events.iter() {
-        let (transform, local, id) = match event {
-            InsertPlayerEvent::Remote(id) => {
+        let (position, local, id) = match event {
+            InsertPlayerEvent::Remote(id, position) => {
                 info!("Inserting remote player");
-                (Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0), None, *id)
+                (position, None, *id)
             }
-            InsertPlayerEvent::Local(id) => {
+            InsertPlayerEvent::Local(id, position) => {
                 info!("Inserting local player");
-                (
-                    Transform::from_xyz(id.0 as f32 * 1.0, 0.0, 0.0),
-                    Some(LocalPlayer),
-                    *id,
-                )
+                (position, Some(LocalPlayer), *id)
             }
         };
         let mut entity = cmd.spawn_bundle(PbrBundle {
@@ -136,11 +132,11 @@ fn spawn_player_system(
                 min_z: -width / 2.0,
                 max_z: width / 2.0,
             })),
-            transform,
+            transform: Transform::from_xyz(position.x, position.y, position.z),
             material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
             ..Default::default()
         });
-        entity.insert(Position::default());
+        entity.insert(*position);
         entity.insert(id);
         if local.is_some() {
             entity.insert(LocalPlayer);
@@ -185,11 +181,11 @@ fn read_server_message_channel_system(
                 ServerMessage::Shopping(e) => {
                     info!("Shopping event received {:?}", e);
                 }
-                ServerMessage::InsertLocalPlayer(id) => {
-                    events.send(InsertPlayerEvent::Local(id));
+                ServerMessage::InsertLocalPlayer(id, position) => {
+                    events.send(InsertPlayerEvent::Local(id, position));
                 }
-                ServerMessage::InsertPlayer(id) => {
-                    events.send(InsertPlayerEvent::Remote(id));
+                ServerMessage::InsertPlayer(id, position) => {
+                    events.send(InsertPlayerEvent::Remote(id, position));
                 }
             }
         }
@@ -251,7 +247,7 @@ fn read_component_channel_system<C: ChannelMessage>(
                     cmd.entity(*entity).insert(component);
                 }
                 None => {
-                    warn!("No player found");
+                    warn!("No player found with id: {:?}", network_id);
                 }
             }
         }

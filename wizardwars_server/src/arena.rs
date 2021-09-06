@@ -7,6 +7,12 @@ pub struct Arena {
     spawn_points: Vec<Vec3>,
 }
 
+impl Arena {
+    pub fn spawn_points(&self) -> &Vec<Vec3> {
+        &self.spawn_points
+    }
+}
+
 pub struct SpawnPointsBuilder {
     count: u32,
     points: Vec<Vec3>,
@@ -41,6 +47,11 @@ pub struct ArenaBuilder {
 }
 
 impl ArenaBuilder {
+    pub fn new() -> Self {
+        Self {
+            spawn_points: Vec::new(),
+        }
+    }
     pub fn with_spawn_points(&mut self, points: SpawnPointsBuilder) -> &mut Self {
         self.spawn_points = points.build();
 

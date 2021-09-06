@@ -65,8 +65,8 @@ pub enum ServerMessage {
     Lobby(LobbyServerMessage),
     Loading(LoadingServerMessage),
     Shopping(ShoppingServerMessage),
-    InsertPlayer(NetworkId),
-    InsertLocalPlayer(NetworkId),
+    InsertPlayer(NetworkId, Vec3),
+    InsertLocalPlayer(NetworkId, Vec3),
 }
 
 pub const CLIENT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {

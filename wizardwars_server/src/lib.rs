@@ -1,4 +1,5 @@
 mod arena;
+mod battle;
 mod loading;
 mod lobby;
 mod network;
@@ -6,6 +7,7 @@ mod shopping;
 mod states;
 mod util;
 
+use battle::BattlePlugin;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
@@ -30,7 +32,7 @@ impl Plugin for ServerPlugin {
             1000 / 60,
         )))
         .insert_resource(ShoppingConfig {
-            time_in_seconds: 10.0,
+            time_in_seconds: 0.0,
         })
         .add_event::<InputEvent>()
         .add_state(ServerState::Init)
@@ -43,6 +45,7 @@ impl Plugin for ServerPlugin {
         .add_plugin(LobbyPlugin)
         .add_plugin(WaitLoadingPlugin)
         .add_plugin(ShoppingTimerPlugin)
+        .add_plugin(BattlePlugin)
         .add_plugin(PrintStateNamesPlugin)
         .add_system(handle_input_events_system.system());
     }
@@ -53,8 +56,8 @@ fn handle_input_events_system(
     time: Res<Time>,
     mut query: Query<(&Client, &mut Position)>,
 ) {
-    for (h, mut position) in query.iter_mut() {
-        for event in events.iter() {
+    for event in events.iter() {
+        for (h, mut position) in query.iter_mut() {
             match event {
                 InputEvent::Move(handle, dir) => {
                     if h == handle {
