@@ -4,6 +4,7 @@ mod network;
 mod shopping;
 mod states;
 mod util;
+mod arena;
 
 use bevy::app::ScheduleRunnerSettings;
 use bevy::log::LogPlugin;
