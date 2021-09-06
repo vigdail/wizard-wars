@@ -16,8 +16,10 @@ pub struct IdFactory(u32);
 
 impl IdFactory {
     pub fn generate(&mut self) -> NetworkId {
+        let id = NetworkId(self.0);
         self.0 += 1;
-        NetworkId(self.0)
+
+        id
     }
 }
 
@@ -139,5 +141,20 @@ fn broadcast_changes_system(
 ) {
     for (id, position) in changed_positions.iter() {
         let _ = net.broadcast_message((*id, *position));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_factory() {
+        let mut factory = IdFactory::default();
+        let id1 = factory.generate();
+        assert_eq!(id1, NetworkId(0));
+
+        let id2 = factory.generate();
+        assert_eq!(id2, NetworkId(1));
     }
 }
