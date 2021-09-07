@@ -1,27 +1,19 @@
-use bevy::math::bool;
+use arena::ArenaPlugin;
 use bevy::prelude::*;
-use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
-use camera::{CameraPlugin, CameraTarget, FollowCamera};
-use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use turbulence::message_channels::ChannelMessage;
-use wizardwars_shared::messages::{LobbyClientMessage, LobbyServerMessage, ReadyState};
+use bevy_networking_turbulence::NetworkResource;
+use camera::CameraPlugin;
+use network::{read_component_channel_system, NetworkPlugin};
+use wizardwars_shared::messages::{LobbyClientMessage, ReadyState};
 use wizardwars_shared::{
-    components::{NetworkId, Position},
-    messages::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage},
+    components::Position,
+    messages::{ActionMessage, ClientMessage},
 };
 
+mod arena;
 mod camera;
+mod network;
 
 pub struct ClientPlugin;
-
-pub struct LocalPlayer;
-
-pub struct InsertPlayerEvent {
-    id: NetworkId,
-    position: Vec3,
-    is_local: bool,
-}
 
 impl Plugin for ClientPlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -30,185 +22,21 @@ impl Plugin for ClientPlugin {
             height: 600.0,
             ..Default::default()
         })
-        .add_event::<InsertPlayerEvent>()
         .add_plugins(DefaultPlugins)
-        .add_plugin(NetworkingPlugin::default())
         .add_plugin(CameraPlugin)
-        .add_startup_system(network_channels_setup.system())
-        .add_startup_system(setup_world_system.system())
-        .add_startup_system(client_setup_system.system())
-        .add_system(spawn_player_system.system())
-        .add_system(handle_network_events_system.system())
-        .add_system(read_server_message_channel_system.system())
+        .add_plugin(NetworkPlugin)
+        .add_plugin(ArenaPlugin)
         .add_system_to_stage(CoreStage::PreUpdate, input_system.system())
+        .add_system_to_stage(CoreStage::PreUpdate, network_mock_input_system.system())
+        .add_system(update_translation_system.system())
         .add_system_to_stage(
             CoreStage::PreUpdate,
             read_component_channel_system::<Position>.system(),
-        )
-        .add_system(update_ball_translation_system.system());
+        );
     }
 }
 
-fn client_setup_system(mut net: ResMut<NetworkResource>) {
-    let ip_address = IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1));
-    let socket_address = SocketAddr::new(ip_address, 9001);
-    info!("Connecting to {}...", socket_address);
-    net.connect(socket_address);
-}
-
-fn handle_network_events_system(
-    mut net: ResMut<NetworkResource>,
-    mut network_event_reader: EventReader<NetworkEvent>,
-) {
-    for event in network_event_reader.iter() {
-        if let NetworkEvent::Connected(handle) = event {
-            match net.connections.get_mut(handle) {
-                Some(_connection) => {
-                    info!("Connection successful");
-
-                    net.send_message(
-                        *handle,
-                        ClientMessage::LobbyMessage(LobbyClientMessage::Join(
-                            "John Doe".to_owned(),
-                        )),
-                    )
-                    .expect("Could not send hello");
-                }
-                None => panic!("Got packet for non-existing connection [{}]", handle),
-            }
-        }
-    }
-}
-
-fn setup_world_system(
-    mut cmd: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let map_material = StandardMaterial {
-        base_color: Color::rgb(0.15, 0.27, 0.33),
-        ..Default::default()
-    };
-
-    cmd.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
-        material: materials.add(map_material),
-        ..Default::default()
-    });
-
-    cmd.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_translation(Vec3::new(0.0, 5.0, 5.0))
-            .looking_at(Vec3::default(), Vec3::Y),
-        ..Default::default()
-    })
-    .insert(FollowCamera {
-        target: Vec3::ZERO,
-        vertical_offset: 1.0,
-        distance: 5.0,
-    });
-    cmd.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(1.0, 5.0, 1.0)),
-        ..Default::default()
-    });
-}
-
-fn spawn_player_system(
-    mut cmd: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-    mut events: EventReader<InsertPlayerEvent>,
-) {
-    let height = 1.0;
-    let width = 0.5;
-
-    for event in events.iter() {
-        let InsertPlayerEvent {
-            id,
-            position,
-            is_local,
-        } = *event;
-
-        let mut entity = cmd.spawn_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box {
-                min_x: -width / 2.0,
-                max_x: width / 2.0,
-                min_y: 0.0,
-                max_y: height,
-                min_z: -width / 2.0,
-                max_z: width / 2.0,
-            })),
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
-            ..Default::default()
-        });
-        entity.insert(id);
-        if is_local {
-            entity.insert(LocalPlayer);
-            entity.insert(CameraTarget);
-        }
-    }
-}
-
-fn read_server_message_channel_system(
-    mut net: ResMut<NetworkResource>,
-    mut events: EventWriter<InsertPlayerEvent>,
-) {
-    // TODO: remove this
-    let mut is_loaded = false;
-
-    for (_, connection) in net.connections.iter_mut() {
-        let channels = connection.channels().unwrap();
-
-        while let Some(message) = channels.recv::<ServerMessage>() {
-            match message {
-                ServerMessage::Lobby(msg) => match msg {
-                    LobbyServerMessage::Welcome(id) => {
-                        info!("Welcome message received: {:?}", id);
-                    }
-                    LobbyServerMessage::SetHost(id) => {
-                        info!("Host now is: {:?}", id);
-                    }
-                    LobbyServerMessage::PlayerJoined(name) => {
-                        info!("Player joined lobby: {}", name);
-                    }
-                    LobbyServerMessage::ReadyState(ready) => {
-                        info!("Server Ready state changed: {:?}", ready);
-                    }
-                    LobbyServerMessage::StartLoading => {
-                        info!("Start loading");
-                        is_loaded = true;
-                    }
-                    LobbyServerMessage::PlayersList(_) => todo!(),
-                },
-                ServerMessage::Loading(e) => {
-                    info!("Loading event received {:?}", e);
-                }
-                ServerMessage::Shopping(e) => {
-                    info!("Shopping event received {:?}", e);
-                }
-                ServerMessage::InsertLocalPlayer(id, position) => {
-                    events.send(InsertPlayerEvent {
-                        id,
-                        position,
-                        is_local: true,
-                    });
-                }
-                ServerMessage::InsertPlayer(id, position) => {
-                    events.send(InsertPlayerEvent {
-                        id,
-                        position,
-                        is_local: false,
-                    });
-                }
-            }
-        }
-    }
-    if is_loaded {
-        net.broadcast_message(ClientMessage::Loaded);
-    }
-}
-
-fn update_ball_translation_system(mut players: Query<(&Position, &mut Transform)>) {
+fn update_translation_system(mut players: Query<(&Position, &mut Transform), Changed<Position>>) {
     for (position, mut transform) in players.iter_mut() {
         transform.translation.x = position.0.x;
         transform.translation.z = position.0.z;
@@ -230,6 +58,13 @@ fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     if input.pressed(KeyCode::D) {
         dir.x += speed;
     }
+
+    if dir.length() > 0.0 {
+        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir)));
+    }
+}
+
+fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     if input.just_pressed(KeyCode::Return) {
         net.broadcast_message(ClientMessage::LobbyMessage(
             LobbyClientMessage::ChangeReadyState(ReadyState::Ready),
@@ -237,32 +72,5 @@ fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     }
     if input.just_pressed(KeyCode::Space) {
         net.broadcast_message(ClientMessage::LobbyMessage(LobbyClientMessage::StartGame));
-    }
-
-    if dir.length() > 0.0 {
-        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir)));
-    }
-}
-
-fn read_component_channel_system<C: ChannelMessage>(
-    mut cmd: Commands,
-    mut net: ResMut<NetworkResource>,
-    players_query: Query<(&NetworkId, Entity, Option<&LocalPlayer>)>,
-) {
-    let players: HashMap<&NetworkId, (Entity, Option<&LocalPlayer>)> =
-        players_query.iter().map(|(b, e, l)| (b, (e, l))).collect();
-
-    for (_, connection) in net.connections.iter_mut() {
-        let channels = connection.channels().unwrap();
-        while let Some((network_id, component)) = channels.recv::<(NetworkId, C)>() {
-            match players.get(&network_id) {
-                Some((entity, _)) => {
-                    cmd.entity(*entity).insert(component);
-                }
-                None => {
-                    warn!("No player found with id: {:?}", network_id);
-                }
-            }
-        }
     }
 }
