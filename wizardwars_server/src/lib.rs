@@ -56,13 +56,14 @@ fn handle_input_events_system(
     time: Res<Time>,
     mut query: Query<(&Client, &mut Position)>,
 ) {
+    let speed = 5.0;
     for event in events.iter() {
         for (h, mut position) in query.iter_mut() {
-            match event {
+            match &event {
                 InputEvent::Move(handle, dir) => {
+                    let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
                     if h == handle {
-                        position.0.x += dir.x * time.delta().as_millis() as f32 / 1000.0;
-                        position.0.z += dir.y * time.delta().as_millis() as f32 / 1000.0;
+                        position.0 += offset * time.delta().as_millis() as f32 / 1000.0;
                     }
                 }
             }
