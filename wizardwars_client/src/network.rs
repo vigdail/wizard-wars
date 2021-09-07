@@ -1,3 +1,4 @@
+use crate::{arena::InsertPlayerEvent, lobby::LobbyEvent};
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::{
@@ -13,16 +14,16 @@ use wizardwars_shared::{
     },
 };
 
-use crate::arena::InsertPlayerEvent;
-
 pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
-        app.add_plugin(NetworkingPlugin::default())
+        app.add_event::<ClientMessage>()
+            .add_plugin(NetworkingPlugin::default())
             .add_startup_system(network_channels_setup.system())
             .add_startup_system(client_setup_system.system())
             .add_system(handle_network_events_system.system())
+            .add_system(send_packets_system.system())
             .add_system(read_server_message_channel_system.system());
     }
 }
@@ -82,50 +83,36 @@ fn handle_network_events_system(
 
 fn read_server_message_channel_system(
     mut net: ResMut<NetworkResource>,
-    mut events: EventWriter<InsertPlayerEvent>,
+    mut player_events: EventWriter<InsertPlayerEvent>,
+    mut lobby_events: EventWriter<LobbyEvent>,
 ) {
-    // TODO: remove this
-    let mut is_loaded = false;
-
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         while let Some(message) = channels.recv::<ServerMessage>() {
+            info!("Received message: {:?}", message);
             match message {
                 ServerMessage::Lobby(msg) => match msg {
-                    LobbyServerMessage::Welcome(id) => {
-                        info!("Welcome message received: {:?}", id);
-                    }
-                    LobbyServerMessage::SetHost(id) => {
-                        info!("Host now is: {:?}", id);
-                    }
-                    LobbyServerMessage::PlayerJoined(name) => {
-                        info!("Player joined lobby: {}", name);
-                    }
-                    LobbyServerMessage::ReadyState(ready) => {
-                        info!("Server Ready state changed: {:?}", ready);
-                    }
+                    LobbyServerMessage::Welcome(_) => {}
+                    LobbyServerMessage::SetHost(_) => {}
+                    LobbyServerMessage::PlayerJoined(_) => {}
+                    LobbyServerMessage::ReadyState(_) => {}
                     LobbyServerMessage::StartLoading => {
-                        info!("Start loading");
-                        is_loaded = true;
+                        lobby_events.send(LobbyEvent::StartLoading);
                     }
                     LobbyServerMessage::PlayersList(_) => todo!(),
                 },
-                ServerMessage::Loading(e) => {
-                    info!("Loading event received {:?}", e);
-                }
-                ServerMessage::Shopping(e) => {
-                    info!("Shopping event received {:?}", e);
-                }
+                ServerMessage::Loading(_) => {}
+                ServerMessage::Shopping(_) => {}
                 ServerMessage::InsertLocalPlayer(id, position) => {
-                    events.send(InsertPlayerEvent {
+                    player_events.send(InsertPlayerEvent {
                         id,
                         position,
                         is_local: true,
                     });
                 }
                 ServerMessage::InsertPlayer(id, position) => {
-                    events.send(InsertPlayerEvent {
+                    player_events.send(InsertPlayerEvent {
                         id,
                         position,
                         is_local: false,
@@ -134,7 +121,10 @@ fn read_server_message_channel_system(
             }
         }
     }
-    if is_loaded {
-        net.broadcast_message(ClientMessage::Loaded);
+}
+
+fn send_packets_system(mut net: ResMut<NetworkResource>, mut events: EventReader<ClientMessage>) {
+    for message in events.iter() {
+        net.broadcast_message(message.clone());
     }
 }

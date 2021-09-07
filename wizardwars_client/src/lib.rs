@@ -2,6 +2,7 @@ use arena::ArenaPlugin;
 use bevy::prelude::*;
 use bevy_networking_turbulence::NetworkResource;
 use camera::CameraPlugin;
+use lobby::LobbyPlugin;
 use network::{read_component_channel_system, NetworkPlugin};
 use wizardwars_shared::messages::{LobbyClientMessage, ReadyState};
 use wizardwars_shared::{
@@ -11,6 +12,7 @@ use wizardwars_shared::{
 
 mod arena;
 mod camera;
+mod lobby;
 mod network;
 
 pub struct ClientPlugin;
@@ -26,6 +28,7 @@ impl Plugin for ClientPlugin {
         .add_plugin(CameraPlugin)
         .add_plugin(NetworkPlugin)
         .add_plugin(ArenaPlugin)
+        .add_plugin(LobbyPlugin)
         .add_system_to_stage(CoreStage::PreUpdate, input_system.system())
         .add_system_to_stage(CoreStage::PreUpdate, network_mock_input_system.system())
         .add_system(update_translation_system.system())
