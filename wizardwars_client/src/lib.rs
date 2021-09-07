@@ -45,22 +45,21 @@ fn update_translation_system(mut players: Query<(&Position, &mut Transform), Cha
 
 fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
     let mut dir = Vec2::ZERO;
-    let speed = 5.0;
     if input.pressed(KeyCode::W) {
-        dir.y -= speed;
+        dir.y -= 1.0;
     }
     if input.pressed(KeyCode::S) {
-        dir.y += speed;
+        dir.y += 1.0;
     }
     if input.pressed(KeyCode::A) {
-        dir.x -= speed;
+        dir.x -= 1.0;
     }
     if input.pressed(KeyCode::D) {
-        dir.x += speed;
+        dir.x += 1.0;
     }
 
     if dir.length() > 0.0 {
-        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir)));
+        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir.normalize())));
     }
 }
 
