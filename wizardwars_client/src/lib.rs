@@ -1,16 +1,17 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 use bevy::math::bool;
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
-use turbulence::message_channels::ChannelMessage;
-
+use camera::{CameraPlugin, CameraTarget, FollowCamera};
 use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::messages::{LobbyClientMessage, LobbyServerMessage, ReadyState};
 use wizardwars_shared::{
     components::{NetworkId, Position},
     messages::{network_channels_setup, ActionMessage, ClientMessage, ServerMessage},
 };
+
+mod camera;
 
 pub struct ClientPlugin;
 
@@ -32,6 +33,7 @@ impl Plugin for ClientPlugin {
         .add_event::<InsertPlayerEvent>()
         .add_plugins(DefaultPlugins)
         .add_plugin(NetworkingPlugin::default())
+        .add_plugin(CameraPlugin)
         .add_startup_system(network_channels_setup.system())
         .add_startup_system(setup_world_system.system())
         .add_startup_system(client_setup_system.system())
@@ -98,6 +100,11 @@ fn setup_world_system(
         transform: Transform::from_translation(Vec3::new(0.0, 5.0, 5.0))
             .looking_at(Vec3::default(), Vec3::Y),
         ..Default::default()
+    })
+    .insert(FollowCamera {
+        target: Vec3::ZERO,
+        vertical_offset: 1.0,
+        distance: 5.0,
     });
     cmd.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(1.0, 5.0, 1.0)),
@@ -137,6 +144,7 @@ fn spawn_player_system(
         entity.insert(id);
         if is_local {
             entity.insert(LocalPlayer);
+            entity.insert(CameraTarget);
         }
     }
 }
