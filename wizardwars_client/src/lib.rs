@@ -4,6 +4,7 @@ use bevy_networking_turbulence::NetworkResource;
 use camera::CameraPlugin;
 use lobby::LobbyPlugin;
 use network::{read_component_channel_system, NetworkPlugin};
+use wizardwars_shared::components::NetworkId;
 use wizardwars_shared::messages::{LobbyClientMessage, ReadyState};
 use wizardwars_shared::{
     components::Position,
@@ -74,5 +75,11 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
     }
     if input.just_pressed(KeyCode::Space) {
         net.broadcast_message(ClientMessage::LobbyMessage(LobbyClientMessage::StartGame));
+    }
+
+    if input.just_pressed(KeyCode::Key1) {
+        net.broadcast_message(ClientMessage::Action(ActionMessage::Attack {
+            target: NetworkId(0),
+        }));
     }
 }

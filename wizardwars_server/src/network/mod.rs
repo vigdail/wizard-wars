@@ -1,7 +1,7 @@
 use crate::loading::LoadCompleteEvent;
 use crate::lobby::{LobbyEvent, LobbyEventEntry};
 use crate::states::ServerState;
-use crate::InputEvent;
+use crate::ActionEvent;
 use bevy::prelude::*;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -77,7 +77,7 @@ fn handle_network_events_system(
 
 fn read_network_channels_system(
     mut net: ResMut<NetworkResource>,
-    mut input_events: EventWriter<InputEvent>,
+    mut action_events: EventWriter<ActionEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
     mut loading_events: EventWriter<LoadCompleteEvent>,
 ) {
@@ -100,7 +100,10 @@ fn read_network_channels_system(
                 },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {
-                        input_events.send(InputEvent::Move(client, dir));
+                        action_events.send(ActionEvent::Move(client, dir));
+                    }
+                    ActionMessage::Attack { target } => {
+                        action_events.send(ActionEvent::Attack(client, target));
                     }
                 },
                 ClientMessage::Loaded => {

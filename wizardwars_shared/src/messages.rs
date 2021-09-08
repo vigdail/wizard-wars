@@ -24,6 +24,7 @@ pub enum LobbyClientMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ActionMessage {
     Move(Vec2),
+    Attack { target: NetworkId },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
