@@ -37,7 +37,7 @@ pub enum ClientMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
     Welcome(NetworkId),
-    PlayerJoined(String),
+    PlayerJoined(NetworkId, String),
     PlayersList(Vec<String>),
     ReadyState(ReadyState),
     SetHost(NetworkId),

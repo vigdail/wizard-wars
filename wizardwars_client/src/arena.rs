@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
 use wizardwars_shared::components::NetworkId;
@@ -57,9 +59,15 @@ fn spawn_player_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<InsertPlayerEvent>,
+    query: Query<(Entity, &NetworkId)>,
 ) {
     let height = 1.0;
     let width = 0.5;
+
+    let clients = query
+        .iter()
+        .map(|(e, id)| (id, e))
+        .collect::<HashMap<_, _>>();
 
     for event in events.iter() {
         let InsertPlayerEvent {
@@ -68,23 +76,25 @@ fn spawn_player_system(
             is_local,
         } = *event;
 
-        let mut entity = cmd.spawn_bundle(PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Box {
-                min_x: -width / 2.0,
-                max_x: width / 2.0,
-                min_y: 0.0,
-                max_y: height,
-                min_z: -width / 2.0,
-                max_z: width / 2.0,
-            })),
-            transform: Transform::from_xyz(position.x, position.y, position.z),
-            material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
-            ..Default::default()
-        });
-        entity.insert(id);
-        if is_local {
-            entity.insert(LocalPlayer);
-            entity.insert(CameraTarget);
+        if let Some(&entity) = clients.get(&id) {
+            cmd.entity(entity)
+                .insert_bundle(PbrBundle {
+                    mesh: meshes.add(Mesh::from(shape::Box {
+                        min_x: -width / 2.0,
+                        max_x: width / 2.0,
+                        min_y: 0.0,
+                        max_y: height,
+                        min_z: -width / 2.0,
+                        max_z: width / 2.0,
+                    })),
+                    transform: Transform::from_xyz(position.x, position.y, position.z),
+                    material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
+                    ..Default::default()
+                })
+                .insert(id);
+            if is_local {
+                cmd.entity(entity).insert(LocalPlayer).insert(CameraTarget);
+            }
         }
     }
 }

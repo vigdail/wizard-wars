@@ -18,7 +18,7 @@ use shopping::{ShoppingConfig, ShoppingTimerPlugin};
 use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
-use wizardwars_shared::components::{Client, NetworkId, Position};
+use wizardwars_shared::components::{Client, NetworkId};
 
 enum ActionEvent {
     Move(Client, Vec2),
@@ -47,26 +47,7 @@ impl Plugin for ServerPlugin {
         .add_plugin(WaitLoadingPlugin)
         .add_plugin(ShoppingTimerPlugin)
         .add_plugin(BattlePlugin)
-        .add_plugin(PrintStateNamesPlugin)
-        .add_system(handle_move_events_system.system());
-    }
-}
-
-fn handle_move_events_system(
-    mut events: EventReader<ActionEvent>,
-    time: Res<Time>,
-    mut query: Query<(&Client, &mut Position)>,
-) {
-    let speed = 5.0;
-    for event in events.iter() {
-        for (h, mut position) in query.iter_mut() {
-            if let ActionEvent::Move(handle, dir) = &event {
-                let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
-                if h == handle {
-                    position.0 += offset * time.delta().as_millis() as f32 / 1000.0;
-                }
-            }
-        }
+        .add_plugin(PrintStateNamesPlugin);
     }
 }
 

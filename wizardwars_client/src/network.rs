@@ -82,6 +82,7 @@ fn handle_network_events_system(
 }
 
 fn read_server_message_channel_system(
+    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut player_events: EventWriter<InsertPlayerEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
@@ -93,9 +94,13 @@ fn read_server_message_channel_system(
             info!("Received message: {:?}", message);
             match message {
                 ServerMessage::Lobby(msg) => match msg {
-                    LobbyServerMessage::Welcome(_) => {}
+                    LobbyServerMessage::Welcome(id) => {
+                        cmd.spawn().insert(id);
+                    }
                     LobbyServerMessage::SetHost(_) => {}
-                    LobbyServerMessage::PlayerJoined(_) => {}
+                    LobbyServerMessage::PlayerJoined(id, _) => {
+                        cmd.spawn().insert(id);
+                    }
                     LobbyServerMessage::ReadyState(_) => {}
                     LobbyServerMessage::StartLoading => {
                         lobby_events.send(LobbyEvent::StartLoading);

@@ -18,3 +18,6 @@ pub struct Health {
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Dead;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+pub struct Winner;

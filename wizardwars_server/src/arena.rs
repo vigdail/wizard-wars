@@ -5,11 +5,29 @@ use bevy::prelude::*;
 
 pub struct Arena {
     spawn_points: Vec<Vec3>,
+    current_round: u32,
+    total_rounds: u32,
 }
 
 impl Arena {
     pub fn spawn_points(&self) -> &Vec<Vec3> {
         &self.spawn_points
+    }
+
+    pub fn current_round(&self) -> u32 {
+        self.current_round
+    }
+
+    pub fn is_last_round(&self) -> bool {
+        self.current_round == self.total_rounds
+    }
+
+    pub fn next_round(&mut self) {
+        self.current_round = self.total_rounds.min(self.current_round + 1);
+    }
+
+    pub fn total_rounds(&self) -> u32 {
+        self.total_rounds
     }
 }
 
@@ -44,14 +62,22 @@ impl SpawnPointsBuilder {
 
 pub struct ArenaBuilder {
     spawn_points: Vec<Vec3>,
+    total_rounds: u32,
 }
 
 impl ArenaBuilder {
     pub fn new() -> Self {
         Self {
             spawn_points: Vec::new(),
+            total_rounds: 5,
         }
     }
+
+    pub fn with_rounds(&mut self, rounds: u32) -> &mut Self {
+        self.total_rounds = rounds;
+        self
+    }
+
     pub fn with_spawn_points(&mut self, points: SpawnPointsBuilder) -> &mut Self {
         self.spawn_points = points.build();
 
@@ -61,6 +87,8 @@ impl ArenaBuilder {
     pub fn build(self) -> Arena {
         Arena {
             spawn_points: self.spawn_points,
+            current_round: 1,
+            total_rounds: self.total_rounds,
         }
     }
 }
@@ -102,5 +130,25 @@ mod test {
             let p2 = window[1];
             assert!((p1.dot(p2)).abs() < 0.001);
         }
+    }
+
+    #[test]
+    fn arena_builder_default_values() {
+        let arena = ArenaBuilder::new().build();
+
+        assert_eq!(arena.total_rounds, 5);
+        assert_eq!(arena.current_round, 1);
+        assert_eq!(arena.spawn_points.len(), 0);
+    }
+
+    #[test]
+    fn arena_builder_with_rounds() {
+        let expected_total_rounds = 10;
+        let mut builder = ArenaBuilder::new();
+        builder.with_rounds(expected_total_rounds);
+        let arena = builder.build();
+
+        assert_eq!(arena.total_rounds, expected_total_rounds);
+        assert_eq!(arena.current_round, 1);
     }
 }

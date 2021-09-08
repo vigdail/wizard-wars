@@ -78,9 +78,16 @@ fn handle_lobby_events(
                     ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
                     Dest::Single(client),
                 ));
+                for (_, _, &id, _) in clients.iter_mut() {
+                    packets.send(Pack::new(
+                        ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(id, "TODO".into())),
+                        Dest::Single(client),
+                    ));
+                }
 
                 packets.send(Pack::new(
                     ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
+                        network_id,
                         client_name.as_str().to_owned(),
                     )),
                     Dest::AllExcept(client),
