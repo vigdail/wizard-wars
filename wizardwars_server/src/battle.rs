@@ -141,7 +141,7 @@ fn check_switch_state_system(
     mut arena: ResMut<Arena>,
     query: Query<&NetworkId, (With<Winner>, Changed<Winner>)>,
 ) {
-    if let Some(_) = query.iter().next() {
+    if query.iter().next().is_some() {
         let next_state = if arena.is_last_round() {
             ServerState::ShowResult
         } else {
