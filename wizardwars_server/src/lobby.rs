@@ -4,11 +4,8 @@ use super::{
 };
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
-    components::{Client, NetworkId},
-    messages::{
-        server_messages::{LobbyServerMessage, ServerMessage},
-        ReadyState,
-    },
+    components::{Client, NetworkId, ReadyState},
+    messages::server_messages::{LobbyServerMessage, ServerMessage},
     network::Pack,
 };
 

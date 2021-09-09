@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use wizardwars_shared::messages::ClientMessage;
+use wizardwars_shared::messages::client_messages::ClientMessage;
 
 pub enum LobbyEvent {
     StartLoading,

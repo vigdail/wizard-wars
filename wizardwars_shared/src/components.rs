@@ -21,3 +21,9 @@ pub struct Dead;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Winner;
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum ReadyState {
+    Ready,
+    NotReady,
+}

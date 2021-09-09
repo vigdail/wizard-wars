@@ -9,9 +9,9 @@ use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
     components::NetworkId,
     messages::{
+        client_messages::{ClientMessage, LobbyClientMessage},
         network_channels_setup,
         server_messages::{LobbyServerMessage, ServerMessage},
-        ClientMessage, LobbyClientMessage,
     },
 };
 

@@ -1,5 +1,4 @@
-use super::ReadyState;
-use crate::components::NetworkId;
+use crate::components::{NetworkId, ReadyState};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;

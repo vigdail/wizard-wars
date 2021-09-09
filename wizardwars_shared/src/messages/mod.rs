@@ -1,3 +1,4 @@
+pub mod client_messages;
 pub mod server_messages;
 
 use crate::components::{NetworkId, Position};
@@ -6,36 +7,9 @@ use bevy_networking_turbulence::{
     ConnectionChannelsBuilder, MessageChannelMode, MessageChannelSettings, NetworkResource,
     ReliableChannelSettings,
 };
-use serde::{Deserialize, Serialize};
+use client_messages::ClientMessage;
 use server_messages::ServerMessage;
 use std::time::Duration;
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
-pub enum ReadyState {
-    Ready,
-    NotReady,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum LobbyClientMessage {
-    Join(String),
-    ChangeReadyState(ReadyState),
-    GetPlayerList,
-    StartGame,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ActionMessage {
-    Move(Vec2),
-    Attack { target: NetworkId },
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ClientMessage {
-    LobbyMessage(LobbyClientMessage),
-    Loaded,
-    Action(ActionMessage),
-}
 
 pub const CLIENT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {
     channel: 0,
