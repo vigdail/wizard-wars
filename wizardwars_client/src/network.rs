@@ -9,8 +9,9 @@ use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
     components::NetworkId,
     messages::{
-        network_channels_setup, ClientMessage, LobbyClientMessage, LobbyServerMessage,
-        ServerMessage,
+        network_channels_setup,
+        server_messages::{LobbyServerMessage, ServerMessage},
+        ClientMessage, LobbyClientMessage,
     },
 };
 
@@ -33,7 +34,8 @@ pub fn read_component_channel_system<C: ChannelMessage>(
     mut net: ResMut<NetworkResource>,
     players_query: Query<(&NetworkId, Entity)>,
 ) {
-    let players: HashMap<&NetworkId, Entity> = players_query.iter().map(|(b, e)| (b, e)).collect();
+    let players: HashMap<&NetworkId, Entity> =
+        players_query.iter().map(|(id, e)| (id, e)).collect();
 
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();

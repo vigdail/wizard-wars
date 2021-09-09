@@ -8,7 +8,7 @@ use crate::{
 use bevy::prelude::*;
 use wizardwars_shared::{
     components::{Client, NetworkId},
-    messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
+    messages::server_messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
 };
 
 pub struct LoadCompleteEvent {
@@ -65,9 +65,7 @@ fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
 }
 
 fn on_exit(mut packets: EventWriter<ServerPacket>) {
-    packets.send(ServerPacket::all(ServerMessage::Loading(
-        LoadingServerMessage::LoadingComplete,
-    )));
+    packets.send(ServerPacket::all(LoadingServerMessage::LoadingComplete));
 }
 
 fn handle_loading_events(
@@ -86,7 +84,7 @@ fn handle_loading_events(
         if let Some(&(entity, &network_id)) = clients_map.get(client) {
             cmd.entity(entity).remove::<Loading>();
             packets.send(ServerPacket::except(
-                ServerMessage::Loading(LoadingServerMessage::PlayerLoaded(network_id)),
+                LoadingServerMessage::PlayerLoaded(network_id),
                 *client,
             ));
         }

@@ -7,7 +7,8 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, NetworkId, Position};
 use wizardwars_shared::messages::{
-    network_channels_setup, ActionMessage, ClientMessage, LobbyClientMessage, ServerMessage,
+    network_channels_setup, server_messages::ServerMessage, ActionMessage, ClientMessage,
+    LobbyClientMessage,
 };
 use wizardwars_shared::network::{Dest, Pack};
 

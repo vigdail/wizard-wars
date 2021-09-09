@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use std::collections::HashMap;
 use wizardwars_shared::{
     components::{Client, Dead, Health, NetworkId, Position, Winner},
-    messages::ServerMessage,
+    messages::server_messages::ServerMessage,
 };
 
 pub struct BattlePlugin;

@@ -1,3 +1,5 @@
+pub mod server_messages;
+
 use crate::components::{NetworkId, Position};
 use bevy::prelude::*;
 use bevy_networking_turbulence::{
@@ -5,6 +7,7 @@ use bevy_networking_turbulence::{
     ReliableChannelSettings,
 };
 use serde::{Deserialize, Serialize};
+use server_messages::ServerMessage;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
@@ -32,42 +35,6 @@ pub enum ClientMessage {
     LobbyMessage(LobbyClientMessage),
     Loaded,
     Action(ActionMessage),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum LobbyServerMessage {
-    Welcome(NetworkId),
-    PlayerJoined(NetworkId, String),
-    PlayersList(Vec<String>),
-    ReadyState(ReadyState),
-    SetHost(NetworkId),
-    StartLoading,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum LoadingServerMessage {
-    PlayerLoaded(NetworkId),
-    LoadingComplete,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TimerInfo {
-    pub duration: Duration,
-    pub elapsed: Duration,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ShoppingServerMessage {
-    Timer(TimerInfo),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub enum ServerMessage {
-    Lobby(LobbyServerMessage),
-    Loading(LoadingServerMessage),
-    Shopping(ShoppingServerMessage),
-    InsertPlayer(NetworkId, Vec3),
-    InsertLocalPlayer(NetworkId, Vec3),
 }
 
 pub const CLIENT_MESSAGE_SETTINGS: MessageChannelSettings = MessageChannelSettings {

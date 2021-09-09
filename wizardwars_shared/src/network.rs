@@ -15,27 +15,30 @@ pub struct Pack<T> {
 }
 
 impl<T> Pack<T> {
-    pub fn new(msg: T, dest: Dest) -> Self {
-        Self { msg, dest }
+    pub fn new<M: Into<T>>(msg: M, dest: Dest) -> Self {
+        Self {
+            msg: msg.into(),
+            dest,
+        }
     }
 
-    pub fn all(msg: T) -> Self {
+    pub fn all<M: Into<T>>(msg: M) -> Self {
         Self {
-            msg,
+            msg: msg.into(),
             dest: Dest::All,
         }
     }
 
-    pub fn single(msg: T, client: Client) -> Self {
+    pub fn single<M: Into<T>>(msg: M, client: Client) -> Self {
         Self {
-            msg,
+            msg: msg.into(),
             dest: Dest::Single(client),
         }
     }
 
-    pub fn except(msg: T, client: Client) -> Self {
+    pub fn except<M: Into<T>>(msg: M, client: Client) -> Self {
         Self {
-            msg,
+            msg: msg.into(),
             dest: Dest::AllExcept(client),
         }
     }

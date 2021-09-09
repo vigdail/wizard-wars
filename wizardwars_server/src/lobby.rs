@@ -5,7 +5,10 @@ use super::{
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
     components::{Client, NetworkId},
-    messages::{LobbyServerMessage, ReadyState, ServerMessage},
+    messages::{
+        server_messages::{LobbyServerMessage, ServerMessage},
+        ReadyState,
+    },
     network::Pack,
 };
 
@@ -84,16 +87,16 @@ fn handle_client_joined(
                 .insert(network_id);
 
             packets.send(Pack::single(
-                ServerMessage::Lobby(LobbyServerMessage::Welcome(network_id)),
+                LobbyServerMessage::Welcome(network_id),
                 client,
             ));
             packets.send(Pack::single(
-                ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
+                LobbyServerMessage::SetHost(host.0.unwrap()),
                 client,
             ));
             for (&id, name) in clients.iter() {
                 packets.send(Pack::single(
-                    ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(id, name.to_string())),
+                    LobbyServerMessage::PlayerJoined(id, name.to_string()),
                     client,
                 ));
             }
