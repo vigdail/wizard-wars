@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     arena::{ArenaBuilder, SpawnPointsBuilder},
     network::ServerPacket,
@@ -73,28 +75,23 @@ fn on_exit(mut packets: EventWriter<ServerPacket>) {
 
 fn handle_loading_events(
     mut cmd: Commands,
-    clients: Query<(Entity, &Client)>,
-    ids: Query<&NetworkId>,
+    clients: Query<(Entity, &Client, &NetworkId)>,
     mut loading_events: EventReader<LoadCompleteEvent>,
     mut packets: EventWriter<ServerPacket>,
 ) {
+    let clients_map = clients
+        .iter()
+        .map(|(entity, client, id)| (client, (entity, id)))
+        .collect::<HashMap<_, _>>();
     for event in loading_events.iter() {
-        let event_client = &event.client;
-        for (entity, client) in clients.iter() {
-            if client != event_client {
-                continue;
-            }
+        let client = &event.client;
 
+        if let Some(&(entity, &network_id)) = clients_map.get(client) {
             cmd.entity(entity).remove::<Loading>();
-            match ids.get(entity) {
-                Ok(&network_id) => {
-                    packets.send(ServerPacket::new(
-                        ServerMessage::Loading(LoadingServerMessage::PlayerLoaded(network_id)),
-                        Dest::AllExcept(*client),
-                    ));
-                }
-                Err(e) => error!("{}", e),
-            }
+            packets.send(ServerPacket::new(
+                ServerMessage::Loading(LoadingServerMessage::PlayerLoaded(network_id)),
+                Dest::AllExcept(*client),
+            ));
         }
     }
 }
