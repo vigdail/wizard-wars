@@ -2,7 +2,7 @@ use super::{
     network::{Host, IdFactory, ServerPacket},
     states::ServerState,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
     components::{Client, NetworkId},
     messages::{LobbyServerMessage, ReadyState, ServerMessage},
@@ -20,120 +20,164 @@ impl LobbyEvent {
     }
 }
 
-#[allow(dead_code)]
 pub enum LobbyEventEntry {
     ClientJoined(String),
     ReadyChanged(ReadyState),
     StartGame,
 }
 
-pub struct StartGameEvent;
+#[derive(PartialEq)]
+pub struct LobbyReadyState(ReadyState);
 
 pub struct LobbyPlugin;
 
 impl Plugin for LobbyPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<LobbyEvent>()
-            .add_event::<StartGameEvent>()
+            .add_system_set(
+                SystemSet::on_enter(ServerState::Lobby).with_system(setup_lobby.system()),
+            )
+            .add_system_set(
+                SystemSet::on_exit(ServerState::Lobby).with_system(teardown_lobby.system()),
+            )
             .add_system_set(
                 SystemSet::on_update(ServerState::Lobby)
-                    .with_system(handle_lobby_events.system())
-                    .with_system(handle_start_game.system()),
+                    .with_system(handle_client_joined.system())
+                    .with_system(handle_client_ready_events.system())
+                    .with_system(handle_ready_changed.system())
+                    .with_system(handle_start_game_event.system()),
             );
     }
 }
 
-fn handle_lobby_events(
+fn setup_lobby(mut cmd: Commands) {
+    cmd.insert_resource(LobbyReadyState(ReadyState::NotReady));
+}
+
+fn teardown_lobby(mut cmd: Commands) {
+    cmd.remove_resource::<LobbyReadyState>();
+}
+
+fn handle_client_joined(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
-    mut start_game_events: EventWriter<StartGameEvent>,
     mut host: ResMut<Host>,
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
-    mut clients: Query<(Entity, &Client, &NetworkId, &mut ReadyState)>,
+    clients: Query<(&NetworkId, &Name), With<Client>>,
 ) {
     for event in lobby_evets.iter() {
         let client = event.client;
-        match &event.event {
-            LobbyEventEntry::ClientJoined(name) => {
-                let network_id = id_factory.generate();
+        if let LobbyEventEntry::ClientJoined(name) = &event.event {
+            let network_id = id_factory.generate();
 
-                if host.0.is_none() {
-                    host.0 = Some(network_id);
-                }
+            if host.0.is_none() {
+                host.0 = Some(network_id);
+            }
 
-                let client_name = Name::new(name.clone());
+            let client_name = Name::new(name.clone());
 
-                cmd.spawn()
-                    .insert(client)
-                    .insert(client_name.clone())
-                    .insert(ReadyState::NotReady)
-                    .insert(network_id);
+            cmd.spawn()
+                .insert(client)
+                .insert(client_name.clone())
+                .insert(ReadyState::NotReady)
+                .insert(network_id);
 
+            packets.send(Pack::new(
+                ServerMessage::Lobby(LobbyServerMessage::Welcome(network_id)),
+                Dest::Single(client),
+            ));
+            packets.send(Pack::new(
+                ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
+                Dest::Single(client),
+            ));
+            for (&id, name) in clients.iter() {
                 packets.send(Pack::new(
-                    ServerMessage::Lobby(LobbyServerMessage::Welcome(network_id)),
+                    ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(id, name.to_string())),
                     Dest::Single(client),
                 ));
-                packets.send(Pack::new(
-                    ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
-                    Dest::Single(client),
-                ));
-                for (_, _, &id, _) in clients.iter_mut() {
-                    packets.send(Pack::new(
-                        ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(id, "TODO".into())),
-                        Dest::Single(client),
-                    ));
-                }
-
-                packets.send(Pack::new(
-                    ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
-                        network_id,
-                        client_name.as_str().to_owned(),
-                    )),
-                    Dest::AllExcept(client),
-                ));
             }
-            LobbyEventEntry::ReadyChanged(ready) => {
-                for (_, &c, _, mut ready_state) in clients.iter_mut() {
-                    if c == client {
-                        *ready_state = *ready;
-                        info!("{:?} ready state is {:?}", client, ready_state);
-                    }
-                }
 
-                let can_start = clients
-                    .iter_mut()
-                    .all(|(_, _, _, ready_state)| *ready_state == ReadyState::Ready);
+            packets.send(Pack::new(
+                ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
+                    network_id,
+                    client_name.as_str().to_owned(),
+                )),
+                Dest::AllExcept(client),
+            ));
+        }
+    }
+}
 
-                let lobby_ready_state = if can_start {
-                    ReadyState::Ready
-                } else {
-                    ReadyState::NotReady
-                };
-
-                packets.send(Pack::new(
-                    ServerMessage::Lobby(LobbyServerMessage::ReadyState(lobby_ready_state)),
-                    Dest::All,
-                ));
+fn handle_client_ready_events(
+    mut cmd: Commands,
+    mut lobby_evets: EventReader<LobbyEvent>,
+    clients: Query<(Entity, &Client)>,
+) {
+    let clients_map = clients
+        .iter()
+        .map(|(entity, client)| (client, entity))
+        .collect::<HashMap<_, _>>();
+    for event in lobby_evets.iter() {
+        let client = &event.client;
+        if let LobbyEventEntry::ReadyChanged(ready) = &event.event {
+            if let Some(&entity) = clients_map.get(client) {
+                cmd.entity(entity).insert(*ready);
             }
-            LobbyEventEntry::StartGame => {
-                let client_id =
-                    clients.iter_mut().find_map(
-                        |(_, &c, id, _)| {
-                            if c == client {
-                                Some(*id)
-                            } else {
-                                None
-                            }
-                        },
-                    );
-                if host.0.is_some() && host.0 == client_id {
-                    let can_start = clients
-                        .iter_mut()
-                        .all(|(_, _, _, ready_state)| *ready_state == ReadyState::Ready);
+        }
+    }
+}
 
-                    if can_start {
-                        start_game_events.send(StartGameEvent);
+fn handle_ready_changed(
+    mut cmd: Commands,
+    mut packets: EventWriter<ServerPacket>,
+    changed_clients: Query<Entity, (With<Client>, Changed<ReadyState>)>,
+    all_clients: Query<(Entity, &ReadyState), With<Client>>,
+) {
+    // TODO: This should be turned into run criteria
+    if changed_clients.iter().next().is_none() {
+        return;
+    }
+
+    let all_ready = all_clients
+        .iter()
+        .all(|(_, ready_state)| *ready_state == ReadyState::Ready);
+    let clients_count = all_clients.iter().count();
+
+    let lobby_ready_state = if all_ready && clients_count > 1 {
+        ReadyState::Ready
+    } else {
+        ReadyState::NotReady
+    };
+
+    cmd.insert_resource(LobbyReadyState(lobby_ready_state));
+
+    packets.send(Pack::new(
+        ServerMessage::Lobby(LobbyServerMessage::ReadyState(lobby_ready_state)),
+        Dest::All,
+    ));
+}
+
+fn handle_start_game_event(
+    mut app_state: ResMut<State<ServerState>>,
+    mut lobby_evets: EventReader<LobbyEvent>,
+    host: Res<Host>,
+    lobby_ready_state: Res<LobbyReadyState>,
+    clients: Query<(&Client, &NetworkId)>,
+) {
+    let clients_map = clients
+        .iter()
+        .map(|(client, id)| (client, id))
+        .collect::<HashMap<_, _>>();
+    for event in lobby_evets.iter() {
+        let client = &event.client;
+        if let LobbyEventEntry::StartGame = &event.event {
+            if let Some(&client_id) = clients_map.get(client) {
+                if host.is_host(client_id) {
+                    if *lobby_ready_state == LobbyReadyState(ReadyState::Ready) {
+                        app_state
+                            .set(ServerState::WaitLoading)
+                            .expect("Cannot change state");
                     } else {
                         error!("Cannot start game: some clients are not ready");
                     }
@@ -145,16 +189,5 @@ fn handle_lobby_events(
                 }
             }
         }
-    }
-}
-
-fn handle_start_game(
-    mut start_game_events: EventReader<StartGameEvent>,
-    mut app_state: ResMut<State<ServerState>>,
-) {
-    if start_game_events.iter().next().is_some() {
-        app_state
-            .set(ServerState::WaitLoading)
-            .expect("Cannot change state");
     }
 }

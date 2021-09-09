@@ -26,6 +26,12 @@ impl IdFactory {
 #[derive(Default)]
 pub struct Host(pub Option<NetworkId>);
 
+impl Host {
+    pub fn is_host(&self, id: &NetworkId) -> bool {
+        Some(*id) == self.0
+    }
+}
+
 pub struct NetworkPlugin;
 
 pub type ServerPacket = Pack<ServerMessage>;
