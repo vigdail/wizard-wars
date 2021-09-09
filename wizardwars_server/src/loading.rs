@@ -55,11 +55,10 @@ fn notify_clients(
 fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
     let clients_count = clients.iter().count() as u32;
 
-    let mut spawn_points = SpawnPointsBuilder::new(clients_count);
-    spawn_points.with_circle_points(1.0);
-    let mut arena = ArenaBuilder::new();
-    arena.with_spawn_points(spawn_points);
-    let arena = arena.build();
+    let spawn_points = SpawnPointsBuilder::new()
+        .with_circle_points(clients_count, 1.0)
+        .build();
+    let arena = ArenaBuilder::new().with_spawn_points(spawn_points).build();
 
     cmd.insert_resource(arena);
 }

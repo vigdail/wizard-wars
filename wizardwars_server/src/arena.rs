@@ -32,20 +32,18 @@ impl Arena {
 }
 
 pub struct SpawnPointsBuilder {
-    count: u32,
     points: Vec<Vec3>,
 }
 
 impl SpawnPointsBuilder {
-    pub fn new(count: u32) -> Self {
-        let points = (0..count).map(|_| Vec3::ZERO).collect();
-        Self { count, points }
+    pub fn new() -> Self {
+        Self { points: Vec::new() }
     }
 
-    pub fn with_circle_points(&mut self, radius: f32) -> &mut Self {
-        self.points = (0..self.count)
+    pub fn with_circle_points(mut self, count: u32, radius: f32) -> Self {
+        self.points = (0..count)
             .map(|i| {
-                let angle = (i as f32 / self.count as f32) * PI * 2.0;
+                let angle = (i as f32 / count as f32) * PI * 2.0;
                 let x = angle.cos() * radius;
                 let z = angle.sin() * radius;
                 Vec3::new(x, 0.0, z)
@@ -73,13 +71,13 @@ impl ArenaBuilder {
         }
     }
 
-    pub fn with_rounds(&mut self, rounds: u32) -> &mut Self {
+    pub fn with_rounds(mut self, rounds: u32) -> Self {
         self.total_rounds = rounds;
         self
     }
 
-    pub fn with_spawn_points(&mut self, points: SpawnPointsBuilder) -> &mut Self {
-        self.spawn_points = points.build();
+    pub fn with_spawn_points(mut self, points: Vec<Vec3>) -> Self {
+        self.spawn_points = points;
 
         self
     }
@@ -99,24 +97,19 @@ mod test {
 
     #[test]
     fn spawn_points_builder() {
-        let count = 5;
-        let builder = SpawnPointsBuilder::new(count);
+        let builder = SpawnPointsBuilder::new();
         let points = builder.build();
 
-        assert_eq!(points.len(), count as usize);
-
-        for point in points.iter() {
-            assert_eq!(point, &Vec3::ZERO);
-        }
+        assert_eq!(points.len(), 0);
     }
 
     #[test]
     fn points_on_circle() {
         let count = 4;
         let radius = 10.0;
-        let mut builder = SpawnPointsBuilder::new(count);
-        builder.with_circle_points(radius);
-        let points = builder.build();
+        let points = SpawnPointsBuilder::new()
+            .with_circle_points(count, radius)
+            .build();
 
         assert_eq!(points.len(), count as usize);
         assert_eq!(points[0], Vec3::new(radius, 0.0, 0.0));
@@ -144,11 +137,41 @@ mod test {
     #[test]
     fn arena_builder_with_rounds() {
         let expected_total_rounds = 10;
-        let mut builder = ArenaBuilder::new();
-        builder.with_rounds(expected_total_rounds);
-        let arena = builder.build();
+        let arena = ArenaBuilder::new()
+            .with_rounds(expected_total_rounds)
+            .build();
 
         assert_eq!(arena.total_rounds, expected_total_rounds);
         assert_eq!(arena.current_round, 1);
+    }
+
+    #[test]
+    fn arena_next_round() {
+        let total_rounds = 2;
+        let mut arena = ArenaBuilder::new().with_rounds(total_rounds).build();
+        assert_eq!(arena.current_round, 1);
+        assert_eq!(arena.total_rounds, total_rounds);
+        assert!(!arena.is_last_round());
+
+        arena.next_round();
+        assert_eq!(arena.current_round, 2);
+        assert_eq!(arena.total_rounds, total_rounds);
+        assert!(arena.is_last_round());
+
+        arena.next_round();
+        assert_eq!(arena.current_round, 2);
+        assert_eq!(arena.total_rounds, total_rounds);
+        assert!(arena.is_last_round());
+    }
+
+    #[test]
+    fn arena_last_round() {
+        let mut arena = ArenaBuilder::new().build();
+        assert_eq!(arena.current_round, 1);
+        assert_eq!(arena.total_rounds, 5);
+
+        arena.next_round();
+        assert_eq!(arena.current_round, 2);
+        assert_eq!(arena.total_rounds, 5);
     }
 }
