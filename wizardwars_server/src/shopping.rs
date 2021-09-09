@@ -1,9 +1,6 @@
 use crate::{network::ServerPacket, states::ServerState};
 use bevy::prelude::*;
-use wizardwars_shared::{
-    messages::{ServerMessage, ShoppingServerMessage, TimerInfo},
-    network::Dest,
-};
+use wizardwars_shared::messages::{ServerMessage, ShoppingServerMessage, TimerInfo};
 
 pub struct ShoppingTimer {
     pub timer: Timer,
@@ -51,10 +48,9 @@ fn update_timer(
         duration: timer.timer.duration(),
         elapsed: timer.timer.elapsed(),
     };
-    let packet = ServerPacket::new(
-        ServerMessage::Shopping(ShoppingServerMessage::Timer(timer_info)),
-        Dest::All,
-    );
+    let packet = ServerPacket::all(ServerMessage::Shopping(ShoppingServerMessage::Timer(
+        timer_info,
+    )));
     packets.send(packet);
 }
 

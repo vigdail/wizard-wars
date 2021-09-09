@@ -1,13 +1,10 @@
-use std::collections::HashMap;
-
+use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
 use bevy::prelude::*;
+use std::collections::HashMap;
 use wizardwars_shared::{
     components::{Client, Dead, Health, NetworkId, Position, Winner},
     messages::ServerMessage,
-    network::Dest,
 };
-
-use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
 
 pub struct BattlePlugin;
 
@@ -75,13 +72,13 @@ fn setup_clients(
                     maximum: 20,
                 })
                 .insert(Position(*point));
-            packets.send(ServerPacket::new(
+            packets.send(ServerPacket::except(
                 ServerMessage::InsertPlayer(*id, *point),
-                Dest::AllExcept(*client),
+                *client,
             ));
-            packets.send(ServerPacket::new(
+            packets.send(ServerPacket::single(
                 ServerMessage::InsertLocalPlayer(*id, *point),
-                Dest::Single(*client),
+                *client,
             ));
         });
 }

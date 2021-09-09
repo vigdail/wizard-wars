@@ -9,7 +9,6 @@ use bevy::prelude::*;
 use wizardwars_shared::{
     components::{Client, NetworkId},
     messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
-    network::Dest,
 };
 
 pub struct LoadCompleteEvent {
@@ -48,10 +47,9 @@ fn notify_clients(
         cmd.entity(e).insert(Loading);
     }
 
-    packets.send(ServerPacket::new(
-        ServerMessage::Lobby(LobbyServerMessage::StartLoading),
-        Dest::All,
-    ));
+    packets.send(ServerPacket::all(ServerMessage::Lobby(
+        LobbyServerMessage::StartLoading,
+    )));
 }
 
 fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
@@ -67,10 +65,9 @@ fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
 }
 
 fn on_exit(mut packets: EventWriter<ServerPacket>) {
-    packets.send(ServerPacket::new(
-        ServerMessage::Loading(LoadingServerMessage::LoadingComplete),
-        Dest::All,
-    ));
+    packets.send(ServerPacket::all(ServerMessage::Loading(
+        LoadingServerMessage::LoadingComplete,
+    )));
 }
 
 fn handle_loading_events(
@@ -88,9 +85,9 @@ fn handle_loading_events(
 
         if let Some(&(entity, &network_id)) = clients_map.get(client) {
             cmd.entity(entity).remove::<Loading>();
-            packets.send(ServerPacket::new(
+            packets.send(ServerPacket::except(
                 ServerMessage::Loading(LoadingServerMessage::PlayerLoaded(network_id)),
-                Dest::AllExcept(*client),
+                *client,
             ));
         }
     }

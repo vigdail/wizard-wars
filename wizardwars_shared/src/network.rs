@@ -18,4 +18,25 @@ impl<T> Pack<T> {
     pub fn new(msg: T, dest: Dest) -> Self {
         Self { msg, dest }
     }
+
+    pub fn all(msg: T) -> Self {
+        Self {
+            msg,
+            dest: Dest::All,
+        }
+    }
+
+    pub fn single(msg: T, client: Client) -> Self {
+        Self {
+            msg,
+            dest: Dest::Single(client),
+        }
+    }
+
+    pub fn except(msg: T, client: Client) -> Self {
+        Self {
+            msg,
+            dest: Dest::AllExcept(client),
+        }
+    }
 }

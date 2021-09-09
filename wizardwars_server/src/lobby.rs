@@ -6,7 +6,7 @@ use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
     components::{Client, NetworkId},
     messages::{LobbyServerMessage, ReadyState, ServerMessage},
-    network::{Dest, Pack},
+    network::Pack,
 };
 
 pub struct LobbyEvent {
@@ -83,27 +83,27 @@ fn handle_client_joined(
                 .insert(ReadyState::NotReady)
                 .insert(network_id);
 
-            packets.send(Pack::new(
+            packets.send(Pack::single(
                 ServerMessage::Lobby(LobbyServerMessage::Welcome(network_id)),
-                Dest::Single(client),
+                client,
             ));
-            packets.send(Pack::new(
+            packets.send(Pack::single(
                 ServerMessage::Lobby(LobbyServerMessage::SetHost(host.0.unwrap())),
-                Dest::Single(client),
+                client,
             ));
             for (&id, name) in clients.iter() {
-                packets.send(Pack::new(
+                packets.send(Pack::single(
                     ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(id, name.to_string())),
-                    Dest::Single(client),
+                    client,
                 ));
             }
 
-            packets.send(Pack::new(
+            packets.send(Pack::except(
                 ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
                     network_id,
                     client_name.as_str().to_owned(),
                 )),
-                Dest::AllExcept(client),
+                client,
             ));
         }
     }
@@ -152,10 +152,9 @@ fn handle_ready_changed(
 
     cmd.insert_resource(LobbyReadyState(lobby_ready_state));
 
-    packets.send(Pack::new(
-        ServerMessage::Lobby(LobbyServerMessage::ReadyState(lobby_ready_state)),
-        Dest::All,
-    ));
+    packets.send(Pack::all(ServerMessage::Lobby(
+        LobbyServerMessage::ReadyState(lobby_ready_state),
+    )));
 }
 
 fn handle_start_game_event(
