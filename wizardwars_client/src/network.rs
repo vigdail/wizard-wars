@@ -1,5 +1,5 @@
 use crate::{arena::InsertPlayerEvent, lobby::LobbyEvent};
-use bevy::prelude::*;
+use bevy::{app::AppExit, prelude::*};
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::{
     collections::HashMap,
@@ -25,7 +25,8 @@ impl Plugin for NetworkPlugin {
             .add_startup_system(client_setup_system.system())
             .add_system(handle_network_events_system.system())
             .add_system(send_packets_system.system())
-            .add_system(read_server_message_channel_system.system());
+            .add_system(read_server_message_channel_system.system())
+            .add_system_to_stage(CoreStage::Last, handle_app_exit_event.system());
     }
 }
 
@@ -133,5 +134,23 @@ fn read_server_message_channel_system(
 fn send_packets_system(mut net: ResMut<NetworkResource>, mut events: EventReader<ClientMessage>) {
     for message in events.iter() {
         net.broadcast_message(message.clone());
+    }
+}
+
+fn handle_app_exit_event(mut events: EventReader<AppExit>, mut net: ResMut<NetworkResource>) {
+    if events.iter().next().is_none() {
+        return;
+    }
+
+    info!("Closing all connections");
+
+    let handles = net
+        .connections
+        .iter()
+        .map(|(&handle, _)| handle)
+        .collect::<Vec<_>>();
+
+    for handle in handles {
+        net.disconnect(handle);
     }
 }
