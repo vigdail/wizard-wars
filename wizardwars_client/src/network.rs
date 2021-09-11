@@ -8,6 +8,7 @@ use std::{
 use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
     components::NetworkId,
+    events::DespawnEntityEvent,
     messages::{
         client_messages::{ClientMessage, LobbyClientMessage},
         network_channels_setup,
@@ -20,6 +21,7 @@ pub struct NetworkPlugin;
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<ClientMessage>()
+            .add_event::<DespawnEntityEvent>()
             .add_plugin(NetworkingPlugin {
                 idle_timeout_ms: Some(3000),
                 auto_heartbeat_ms: Some(1000),
@@ -30,6 +32,7 @@ impl Plugin for NetworkPlugin {
             .add_system(handle_network_events_system.system())
             .add_system(send_packets_system.system())
             .add_system(read_server_message_channel_system.system())
+            .add_system(despawn_entities_system.system())
             .add_system_to_stage(CoreStage::Last, handle_app_exit_event.system());
     }
 }
@@ -95,7 +98,8 @@ fn handle_network_events_system(
 fn read_server_message_channel_system(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
-    mut player_events: EventWriter<InsertPlayerEvent>,
+    mut insert_player_events: EventWriter<InsertPlayerEvent>,
+    mut remove_player_events: EventWriter<DespawnEntityEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
 ) {
     for (_, connection) in net.connections.iter_mut() {
@@ -121,18 +125,21 @@ fn read_server_message_channel_system(
                 ServerMessage::Loading(_) => {}
                 ServerMessage::Shopping(_) => {}
                 ServerMessage::InsertLocalPlayer(id, position) => {
-                    player_events.send(InsertPlayerEvent {
+                    insert_player_events.send(InsertPlayerEvent {
                         id,
                         position,
                         is_local: true,
                     });
                 }
                 ServerMessage::InsertPlayer(id, position) => {
-                    player_events.send(InsertPlayerEvent {
+                    insert_player_events.send(InsertPlayerEvent {
                         id,
                         position,
                         is_local: false,
                     });
+                }
+                ServerMessage::Despawn(id) => {
+                    remove_player_events.send(DespawnEntityEvent { id });
                 }
             }
         }
@@ -160,5 +167,23 @@ fn handle_app_exit_event(mut events: EventReader<AppExit>, mut net: ResMut<Netwo
 
     for handle in handles {
         net.disconnect(handle);
+    }
+}
+
+fn despawn_entities_system(
+    mut cmd: Commands,
+    mut events: EventReader<DespawnEntityEvent>,
+    query: Query<(Entity, &NetworkId)>,
+) {
+    let map = query
+        .iter()
+        .map(|(entity, id)| (id, entity))
+        .collect::<HashMap<_, _>>();
+    for event in events.iter() {
+        if let Some(&entity) = map.get(&event.id) {
+            cmd.entity(entity).despawn();
+        } else {
+            warn!("Trying to remove non existing entity: {:?}", event.id);
+        }
     }
 }

@@ -3,6 +3,7 @@ use crate::lobby::{LobbyEvent, LobbyEventEntry};
 use crate::states::ServerState;
 use crate::ActionEvent;
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, NetworkId, Position};
@@ -67,9 +68,17 @@ pub fn server_setup_system(mut net: ResMut<NetworkResource>) {
 }
 
 fn handle_network_events_system(
+    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut network_event_reader: EventReader<NetworkEvent>,
+    clients: Query<(Entity, &Client, &NetworkId)>,
 ) {
+    let clients_map = clients
+        .iter()
+        .map(|(entity, client, id)| (client.0, (entity, id)))
+        .collect::<HashMap<_, _>>();
+    let mut disconnected = Vec::new();
+
     for event in network_event_reader.iter() {
         match event {
             NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
@@ -80,9 +89,16 @@ fn handle_network_events_system(
             },
             NetworkEvent::Disconnected(handle) => {
                 info!("Disconnected handle: {:?}", &handle);
+                if let Some(&(entity, &id)) = clients_map.get(handle) {
+                    cmd.entity(entity).despawn();
+                    disconnected.push(id);
+                }
             }
             _ => {}
         }
+    }
+    for id in disconnected.into_iter() {
+        net.broadcast_message(ServerMessage::Despawn(id));
     }
 }
 

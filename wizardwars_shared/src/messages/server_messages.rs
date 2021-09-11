@@ -37,6 +37,7 @@ pub enum ServerMessage {
     Shopping(ShoppingServerMessage),
     InsertPlayer(NetworkId, Vec3),
     InsertLocalPlayer(NetworkId, Vec3),
+    Despawn(NetworkId),
 }
 
 impl From<LobbyServerMessage> for ServerMessage {
