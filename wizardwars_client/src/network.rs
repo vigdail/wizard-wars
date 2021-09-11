@@ -20,7 +20,11 @@ pub struct NetworkPlugin;
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<ClientMessage>()
-            .add_plugin(NetworkingPlugin::default())
+            .add_plugin(NetworkingPlugin {
+                idle_timeout_ms: Some(3000),
+                auto_heartbeat_ms: Some(1000),
+                ..Default::default()
+            })
             .add_startup_system(network_channels_setup.system())
             .add_startup_system(client_setup_system.system())
             .add_system(handle_network_events_system.system())
@@ -65,8 +69,8 @@ fn handle_network_events_system(
     mut network_event_reader: EventReader<NetworkEvent>,
 ) {
     for event in network_event_reader.iter() {
-        if let NetworkEvent::Connected(handle) = event {
-            match net.connections.get_mut(handle) {
+        match event {
+            NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
                 Some(_connection) => {
                     info!("Connection successful");
 
@@ -79,7 +83,11 @@ fn handle_network_events_system(
                     .expect("Could not send hello");
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
+            },
+            NetworkEvent::Disconnected(handle) => {
+                info!("Disconnected from: {}", handle);
             }
+            _ => (),
         }
     }
 }

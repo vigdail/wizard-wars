@@ -6,7 +6,7 @@ version = "0.1.0"
 
 [dependencies]
 bevy = {version = "0.5.0", features = ["dynamic"]}
-bevy_networking_turbulence = "0.3.3"
+bevy_networking_turbulence = {git = "https://github.com/vigdail/bevy_networking_turbulence.git", branch = "bugfix/heartbeat_and_channels"}
 serde = {version = "1.0.130", features = ["derive"]}
 turbulence = "0.3.0"
 wizardwars_shared = {path = "../wizardwars_shared"}

@@ -500,8 +500,7 @@ dependencies = [
 [[package]]
 name = "bevy_networking_turbulence"
 version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55e63877f77f20306f68f602a817f10902e21be9a198b53a6b87cfc4bce28911"
+source = "git+https://github.com/vigdail/bevy_networking_turbulence.git?branch=bugfix/heartbeat_and_channels#759706cd120e7672bc136d67b548981aaf52bacf"
 dependencies = [
  "bevy",
  "bytes",

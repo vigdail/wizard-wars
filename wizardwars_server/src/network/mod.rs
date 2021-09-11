@@ -42,7 +42,11 @@ impl Plugin for NetworkPlugin {
         app.insert_resource(IdFactory::default())
             .insert_resource(Host::default())
             .add_event::<ServerPacket>()
-            .add_plugin(NetworkingPlugin::default())
+            .add_plugin(NetworkingPlugin {
+                idle_timeout_ms: Some(3000),
+                auto_heartbeat_ms: Some(1000),
+                ..Default::default()
+            })
             .add_system_set(
                 SystemSet::on_enter(ServerState::Init)
                     .with_system(network_channels_setup.system())
