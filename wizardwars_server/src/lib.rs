@@ -3,6 +3,7 @@ mod battle;
 mod loading;
 mod lobby;
 mod network;
+mod result;
 mod shopping;
 mod states;
 mod util;
@@ -14,6 +15,7 @@ use bevy::prelude::*;
 use loading::WaitLoadingPlugin;
 use lobby::LobbyPlugin;
 use network::NetworkPlugin;
+use result::ResultPlugin;
 use shopping::{ShoppingConfig, ShoppingTimerPlugin};
 use states::ServerState;
 use std::time::Duration;
@@ -47,6 +49,7 @@ impl Plugin for ServerPlugin {
         .add_plugin(WaitLoadingPlugin)
         .add_plugin(ShoppingTimerPlugin)
         .add_plugin(BattlePlugin)
+        .add_plugin(ResultPlugin)
         .add_plugin(PrintStateNamesPlugin);
     }
 }
