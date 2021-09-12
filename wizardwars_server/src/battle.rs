@@ -67,10 +67,7 @@ fn setup_clients(
         .zip(spawn_points.iter())
         .for_each(|((entity, id, client), point)| {
             cmd.entity(entity)
-                .insert(Health {
-                    current: 20,
-                    maximum: 20,
-                })
+                .insert(Health::new(20))
                 .insert(Position(*point));
             packets.send(ServerPacket::except(
                 ServerMessage::InsertPlayer(*id, *point),
@@ -95,7 +92,7 @@ fn handle_attack_events_system(
     for event in events.iter() {
         if let ActionEvent::Attack(_, target) = &event {
             if let Some(target_health) = map.get_mut(target) {
-                target_health.current = target_health.current.saturating_sub(10);
+                target_health.change_by(-10);
             }
         }
     }
@@ -121,7 +118,7 @@ fn handle_move_events_system(
 
 fn handle_health_system(mut cmd: Commands, query: Query<(Entity, &Health), Changed<Health>>) {
     for (entity, health) in query.iter() {
-        if health.current == 0 {
+        if health.should_die() {
             cmd.entity(entity).insert(Dead);
         }
     }

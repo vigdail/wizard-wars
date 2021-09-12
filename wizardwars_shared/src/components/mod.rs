@@ -1,5 +1,9 @@
+mod health;
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
+
+pub use health::Health;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Uuid(pub u32);
@@ -9,12 +13,6 @@ pub struct Client(pub u32);
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);
-
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub struct Health {
-    pub current: u32,
-    pub maximum: u32,
-}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Dead;
