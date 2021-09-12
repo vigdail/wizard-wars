@@ -2,7 +2,7 @@ use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEven
 use bevy::prelude::*;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Client, Dead, Health, NetworkId, Position, Winner},
+    components::{Client, Dead, Health, Position, Uuid, Winner},
     messages::server_messages::ServerMessage,
 };
 
@@ -56,7 +56,7 @@ fn setup_clients(
     arena: Res<Arena>,
     mut battle_state: ResMut<State<BattleState>>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(Entity, &NetworkId, &Client)>,
+    clients: Query<(Entity, &Uuid, &Client)>,
 ) {
     battle_state
         .overwrite_set(BattleState::Prepare)
@@ -85,7 +85,7 @@ fn setup_clients(
 
 fn handle_attack_events_system(
     mut events: EventReader<ActionEvent>,
-    mut query: Query<(&NetworkId, &mut Health), Without<Dead>>,
+    mut query: Query<(&Uuid, &mut Health), Without<Dead>>,
 ) {
     let mut map = query
         .iter_mut()
@@ -136,7 +136,7 @@ fn check_winer_system(mut cmd: Commands, query: Query<Entity, (With<Client>, Wit
 fn check_switch_state_system(
     mut state: ResMut<State<ServerState>>,
     mut arena: ResMut<Arena>,
-    query: Query<&NetworkId, (With<Winner>, Changed<Winner>)>,
+    query: Query<&Uuid, (With<Winner>, Changed<Winner>)>,
 ) {
     if query.iter().next().is_some() {
         let next_state = if arena.is_last_round() {
@@ -159,13 +159,13 @@ fn debug_health_change_system(query: Query<&Health, Changed<Health>>) {
     }
 }
 
-fn debug_winner_change_system(query: Query<&NetworkId, Changed<Winner>>) {
+fn debug_winner_change_system(query: Query<&Uuid, Changed<Winner>>) {
     for id in query.iter() {
         info!("Player with {:?} is winner", id);
     }
 }
 
-fn debug_dead_message_system(query: Query<&NetworkId, Changed<Dead>>) {
+fn debug_dead_message_system(query: Query<&Uuid, Changed<Dead>>) {
     for id in query.iter() {
         info!("Entity with {:?} is dead", id);
     }

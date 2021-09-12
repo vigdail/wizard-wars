@@ -6,7 +6,7 @@ use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use wizardwars_shared::components::{Client, NetworkId, Position};
+use wizardwars_shared::components::{Client, Position, Uuid};
 use wizardwars_shared::messages::client_messages::{
     ActionMessage, ClientMessage, LobbyClientMessage,
 };
@@ -17,8 +17,8 @@ use wizardwars_shared::network::{Dest, Pack};
 pub struct IdFactory(u32);
 
 impl IdFactory {
-    pub fn generate(&mut self) -> NetworkId {
-        let id = NetworkId(self.0);
+    pub fn generate(&mut self) -> Uuid {
+        let id = Uuid(self.0);
         self.0 += 1;
 
         id
@@ -26,10 +26,10 @@ impl IdFactory {
 }
 
 #[derive(Default)]
-pub struct Host(pub Option<NetworkId>);
+pub struct Host(pub Option<Uuid>);
 
 impl Host {
-    pub fn is_host(&self, id: &NetworkId) -> bool {
+    pub fn is_host(&self, id: &Uuid) -> bool {
         Some(*id) == self.0
     }
 }
@@ -71,7 +71,7 @@ fn handle_network_events_system(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut network_event_reader: EventReader<NetworkEvent>,
-    clients: Query<(Entity, &Client, &NetworkId)>,
+    clients: Query<(Entity, &Client, &Uuid)>,
 ) {
     let clients_map = clients
         .iter()
@@ -167,7 +167,7 @@ fn send_packets_system(
 
 fn broadcast_changes_system(
     mut net: ResMut<NetworkResource>,
-    changed_positions: Query<(&NetworkId, &Position), Changed<Position>>,
+    changed_positions: Query<(&Uuid, &Position), Changed<Position>>,
 ) {
     for (id, position) in changed_positions.iter() {
         let _ = net.broadcast_message((*id, *position));
@@ -182,9 +182,9 @@ mod tests {
     fn id_factory() {
         let mut factory = IdFactory::default();
         let id1 = factory.generate();
-        assert_eq!(id1, NetworkId(0));
+        assert_eq!(id1, Uuid(0));
 
         let id2 = factory.generate();
-        assert_eq!(id2, NetworkId(1));
+        assert_eq!(id2, Uuid(1));
     }
 }

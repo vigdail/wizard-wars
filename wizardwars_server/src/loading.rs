@@ -7,7 +7,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use wizardwars_shared::{
-    components::{Client, NetworkId},
+    components::{Client, Uuid},
     messages::server_messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
 };
 
@@ -69,7 +69,7 @@ fn on_exit(mut packets: EventWriter<ServerPacket>) {
 
 fn handle_loading_events(
     mut cmd: Commands,
-    clients: Query<(Entity, &Client, &NetworkId)>,
+    clients: Query<(Entity, &Client, &Uuid)>,
     mut loading_events: EventReader<LoadCompleteEvent>,
     mut packets: EventWriter<ServerPacket>,
 ) {

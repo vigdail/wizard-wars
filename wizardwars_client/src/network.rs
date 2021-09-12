@@ -7,7 +7,7 @@ use std::{
 };
 use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
-    components::NetworkId,
+    components::Uuid,
     events::DespawnEntityEvent,
     messages::{
         client_messages::{ClientMessage, LobbyClientMessage},
@@ -40,14 +40,13 @@ impl Plugin for NetworkPlugin {
 pub fn read_component_channel_system<C: ChannelMessage>(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
-    players_query: Query<(&NetworkId, Entity)>,
+    players_query: Query<(&Uuid, Entity)>,
 ) {
-    let players: HashMap<&NetworkId, Entity> =
-        players_query.iter().map(|(id, e)| (id, e)).collect();
+    let players: HashMap<&Uuid, Entity> = players_query.iter().map(|(id, e)| (id, e)).collect();
 
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
-        while let Some((network_id, component)) = channels.recv::<(NetworkId, C)>() {
+        while let Some((network_id, component)) = channels.recv::<(Uuid, C)>() {
             match players.get(&network_id) {
                 Some(entity) => {
                     cmd.entity(*entity).insert(component);
@@ -173,7 +172,7 @@ fn handle_app_exit_event(mut events: EventReader<AppExit>, mut net: ResMut<Netwo
 fn despawn_entities_system(
     mut cmd: Commands,
     mut events: EventReader<DespawnEntityEvent>,
-    query: Query<(Entity, &NetworkId)>,
+    query: Query<(Entity, &Uuid)>,
 ) {
     let map = query
         .iter()

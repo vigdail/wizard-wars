@@ -1,21 +1,21 @@
-use crate::components::{NetworkId, ReadyState};
+use crate::components::{ReadyState, Uuid};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
-    Welcome(NetworkId),
-    PlayerJoined(NetworkId, String),
+    Welcome(Uuid),
+    PlayerJoined(Uuid, String),
     PlayersList(Vec<String>),
     ReadyState(ReadyState),
-    SetHost(NetworkId),
+    SetHost(Uuid),
     StartLoading,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LoadingServerMessage {
-    PlayerLoaded(NetworkId),
+    PlayerLoaded(Uuid),
     LoadingComplete,
 }
 
@@ -35,9 +35,9 @@ pub enum ServerMessage {
     Lobby(LobbyServerMessage),
     Loading(LoadingServerMessage),
     Shopping(ShoppingServerMessage),
-    InsertPlayer(NetworkId, Vec3),
-    InsertLocalPlayer(NetworkId, Vec3),
-    Despawn(NetworkId),
+    InsertPlayer(Uuid, Vec3),
+    InsertLocalPlayer(Uuid, Vec3),
+    Despawn(Uuid),
 }
 
 impl From<LobbyServerMessage> for ServerMessage {

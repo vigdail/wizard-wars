@@ -1,7 +1,7 @@
 pub mod client_messages;
 pub mod server_messages;
 
-use crate::components::{NetworkId, Position};
+use crate::components::{Position, Uuid};
 use bevy::prelude::*;
 use bevy_networking_turbulence::{
     ConnectionChannelsBuilder, MessageChannelMode, MessageChannelSettings, NetworkResource,
@@ -71,7 +71,7 @@ pub fn network_channels_setup(mut net: ResMut<NetworkResource>) {
             .register::<ServerMessage>(SERVER_MESSAGE_SETTINGS)
             .unwrap();
         builder
-            .register::<(NetworkId, Position)>(player_component_message_settings(2))
+            .register::<(Uuid, Position)>(player_component_message_settings(2))
             .unwrap();
     });
 }

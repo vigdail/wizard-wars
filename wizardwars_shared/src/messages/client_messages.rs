@@ -1,5 +1,5 @@
-use crate::components::NetworkId;
 use crate::components::ReadyState;
+use crate::components::Uuid;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -14,7 +14,7 @@ pub enum LobbyClientMessage {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ActionMessage {
     Move(Vec2),
-    Attack { target: NetworkId },
+    Attack { target: Uuid },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

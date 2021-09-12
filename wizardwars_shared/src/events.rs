@@ -1,5 +1,5 @@
-use crate::components::NetworkId;
+use crate::components::Uuid;
 
 pub struct DespawnEntityEvent {
-    pub id: NetworkId,
+    pub id: Uuid,
 }

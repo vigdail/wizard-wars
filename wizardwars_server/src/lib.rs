@@ -20,11 +20,11 @@ use shopping::{ShoppingConfig, ShoppingTimerPlugin};
 use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
-use wizardwars_shared::components::{Client, NetworkId};
+use wizardwars_shared::components::{Client, Uuid};
 
 enum ActionEvent {
     Move(Client, Vec2),
-    Attack(Client, NetworkId),
+    Attack(Client, Uuid),
 }
 
 pub struct ServerPlugin;

@@ -4,7 +4,7 @@ use super::{
 };
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
-    components::{Client, NetworkId, ReadyState},
+    components::{Client, ReadyState, Uuid},
     messages::server_messages::{LobbyServerMessage, ServerMessage},
     network::Pack,
 };
@@ -64,7 +64,7 @@ fn handle_client_joined(
     mut host: ResMut<Host>,
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(&NetworkId, &Name), With<Client>>,
+    clients: Query<(&Uuid, &Name), With<Client>>,
 ) {
     for event in lobby_evets.iter() {
         let client = event.client;
@@ -162,7 +162,7 @@ fn handle_start_game_event(
     mut lobby_evets: EventReader<LobbyEvent>,
     host: Res<Host>,
     lobby_ready_state: Res<LobbyReadyState>,
-    clients: Query<(&Client, &NetworkId)>,
+    clients: Query<(&Client, &Uuid)>,
 ) {
     let clients_map = clients
         .iter()

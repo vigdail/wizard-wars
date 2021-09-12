@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
-use wizardwars_shared::components::NetworkId;
+use wizardwars_shared::components::Uuid;
 
 pub struct InsertPlayerEvent {
-    pub id: NetworkId,
+    pub id: Uuid,
     pub position: Vec3,
     pub is_local: bool,
 }
@@ -59,7 +59,7 @@ fn spawn_player_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<InsertPlayerEvent>,
-    query: Query<(Entity, &NetworkId)>,
+    query: Query<(Entity, &Uuid)>,
 ) {
     let height = 1.0;
     let width = 0.5;
