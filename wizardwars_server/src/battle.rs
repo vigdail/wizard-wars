@@ -2,8 +2,12 @@ use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEven
 use bevy::prelude::*;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Client, Dead, Health, Position, Uuid, Winner},
+    components::{
+        damage::{Attack, FireBall},
+        Client, Dead, Health, Position, Uuid, Velocity, Winner,
+    },
     messages::server_messages::ServerMessage,
+    systems::{apply_damage_system, attack_system, collision_system, move_system, CollisionEvent},
 };
 
 pub struct BattlePlugin;
@@ -20,6 +24,7 @@ pub enum BattleState {
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(BattleState::None)
+            .add_event::<CollisionEvent>()
             .add_system_set(
                 SystemSet::on_enter(ServerState::Battle).with_system(setup_clients.system()),
             )
@@ -28,6 +33,10 @@ impl Plugin for BattlePlugin {
                     .with_system(handle_attack_events_system.system())
                     .with_system(handle_health_system.system())
                     .with_system(check_winer_system.system())
+                    .with_system(apply_damage_system.system())
+                    .with_system(move_system.system())
+                    .with_system(attack_system.system())
+                    .with_system(collision_system.system())
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
@@ -81,18 +90,34 @@ fn setup_clients(
 }
 
 fn handle_attack_events_system(
+    mut cmd: Commands,
     mut events: EventReader<ActionEvent>,
-    mut query: Query<(&Uuid, &mut Health), Without<Dead>>,
+    query: Query<(&Position, &Client), (With<Health>, Without<Dead>)>,
 ) {
-    let mut map = query
-        .iter_mut()
-        .map(|(id, health)| (id, health))
-        .collect::<HashMap<_, _>>();
-
+    let map = query.iter().map(|(p, c)| (c, p)).collect::<HashMap<_, _>>();
     for event in events.iter() {
-        if let ActionEvent::Attack(_, target) = &event {
-            if let Some(target_health) = map.get_mut(target) {
-                target_health.change_by(-10);
+        if let ActionEvent::FireBall(client) = &event {
+            // if let Some(target_health) = map.get_mut(target) {
+            //     target_health.change_by(-10);
+            // }
+            let attacker = **map.get(client).unwrap();
+            for (target_position, c) in query.iter() {
+                if c == client {
+                    continue;
+                }
+                let dir = (attacker.0 - target_position.0).normalize();
+                cmd.spawn()
+                    .insert(attacker)
+                    .insert(Velocity(-dir * 5.0))
+                    .insert(FireBall {
+                        attack: Attack::new(10),
+                    });
+
+                info!("attacker: {:?}", attacker);
+                info!("target: {:?}", attacker);
+                info!("dir: {:?}", dir);
+
+                break;
             }
         }
     }
@@ -109,7 +134,7 @@ fn handle_move_events_system(
             if let ActionEvent::Move(handle, dir) = &event {
                 let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
                 if h == handle {
-                    position.0 += offset * time.delta().as_millis() as f32 / 1000.0;
+                    position.0 += offset * time.delta_seconds();
                 }
             }
         }

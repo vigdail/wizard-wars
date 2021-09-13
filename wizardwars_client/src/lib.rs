@@ -77,8 +77,6 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
     }
 
     if input.just_pressed(KeyCode::Key1) {
-        net.broadcast_message(ClientMessage::Action(ActionMessage::Attack {
-            target: Uuid(0),
-        }));
+        net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall));
     }
 }

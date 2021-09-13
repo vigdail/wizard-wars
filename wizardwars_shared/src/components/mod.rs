@@ -1,3 +1,4 @@
+pub mod damage;
 mod health;
 
 use bevy::prelude::*;
@@ -14,6 +15,9 @@ pub struct Client(pub u32);
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);
 
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
+pub struct Velocity(pub Vec3);
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Dead;
 
@@ -24,4 +28,16 @@ pub struct Winner;
 pub enum ReadyState {
     Ready,
     NotReady,
+}
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Owner(Uuid);
+
+impl Owner {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn id(&self) -> Uuid {
+        self.0
+    }
 }

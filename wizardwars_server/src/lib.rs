@@ -25,6 +25,7 @@ use wizardwars_shared::components::{Client, Uuid};
 enum ActionEvent {
     Move(Client, Vec2),
     Attack(Client, Uuid),
+    FireBall(Client),
 }
 
 pub struct ServerPlugin;

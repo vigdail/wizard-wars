@@ -132,6 +132,9 @@ fn read_network_channels_system(
                     ActionMessage::Attack { target } => {
                         action_events.send(ActionEvent::Attack(client, target));
                     }
+                    ActionMessage::FireBall => {
+                        action_events.send(ActionEvent::FireBall(client));
+                    }
                 },
                 ClientMessage::Loaded => {
                     loading_events.send(LoadCompleteEvent { client });
