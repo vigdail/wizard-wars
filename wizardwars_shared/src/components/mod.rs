@@ -1,3 +1,4 @@
+pub mod damage;
 mod health;
 
 use bevy::prelude::*;
@@ -20,6 +21,9 @@ pub struct Bot;
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);
 
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
+pub struct Velocity(pub Vec3);
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Dead;
 
@@ -34,3 +38,15 @@ pub enum ReadyState {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
 pub struct Waypoint(pub Vec3);
+
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq)]
+pub struct Owner(Uuid);
+
+impl Owner {
+    pub fn new(id: Uuid) -> Self {
+        Self(id)
+    }
+    pub fn id(&self) -> Uuid {
+        self.0
+    }
+}

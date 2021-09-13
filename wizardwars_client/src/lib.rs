@@ -5,7 +5,7 @@ use camera::CameraPlugin;
 use lobby::LobbyPlugin;
 use network::{read_component_channel_system, NetworkPlugin};
 use wizardwars_shared::{
-    components::{Position, ReadyState, Uuid},
+    components::{Position, ReadyState},
     messages::client_messages::{ActionMessage, ClientMessage, LobbyClientMessage},
 };
 
@@ -77,9 +77,7 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
     }
 
     if input.just_pressed(KeyCode::Key1) {
-        net.broadcast_message(ClientMessage::Action(ActionMessage::Attack {
-            target: Uuid(0),
-        }));
+        net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall));
     }
 
     if input.just_pressed(KeyCode::B) {
