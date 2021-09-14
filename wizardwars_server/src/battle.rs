@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use wizardwars_shared::{
     components::{
         damage::{Attack, FireBall},
-        Bot, Client, Dead, Health, Player, Position, Uuid, Velocity, Waypoint, Winner,
+        Bot, Client, Dead, Dead, Health, Health, Player, Position, Position, Uuid, Uuid, Velocity,
+        Velocity, Waypoint, Winner, Winner,
     },
     messages::server_messages::ServerMessage,
     systems::{apply_damage_system, attack_system, collision_system, move_system, CollisionEvent},
