@@ -17,7 +17,7 @@ use wizardwars_shared::{
 };
 use wizardwars_shared::{
     messages::server_messages::ServerMessage,
-    systems::{apply_damage_system, attack_system, collision_system, move_system, CollisionEvent},
+    systems::{apply_damage_system, move_system},
 };
 
 pub struct BattlePlugin;
@@ -34,7 +34,6 @@ pub enum BattleState {
 impl Plugin for BattlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(BattleState::None)
-            .add_event::<CollisionEvent>()
             .add_system_set(
                 SystemSet::on_enter(ServerState::Battle).with_system(setup_players.system()),
             )
@@ -45,8 +44,6 @@ impl Plugin for BattlePlugin {
                     .with_system(check_winer_system.system())
                     .with_system(apply_damage_system.system())
                     .with_system(move_system.system())
-                    .with_system(attack_system.system())
-                    .with_system(collision_system.system())
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
@@ -119,11 +116,9 @@ fn handle_attack_events_system(
     let mut rng = rand::thread_rng();
     for event in events.iter() {
         if let ActionEvent::FireBall(client) = &event {
-            // if let Some(target_health) = map.get_mut(target) {
-            //     target_health.change_by(-10);
-            // }
-            let attacker = map.get(client).unwrap().0;
-            let target = Vec3::new(rng.gen_range(-5.0..5.0), 0.0, rng.gen_range(-5.0..5.0));
+            let offset = 0.5;
+            let attacker = map.get(client).unwrap().0 + Vec3::Y * offset;
+            let target = Vec3::new(rng.gen_range(-5.0..5.0), offset, rng.gen_range(-5.0..5.0));
             let dir = (attacker - target).normalize();
             let id = id_factory.generate();
             cmd.spawn()
@@ -134,10 +129,6 @@ fn handle_attack_events_system(
                 })
                 .insert(LifeTime::from_seconds(1.0))
                 .insert(id);
-
-            info!("attacker: {:?}", attacker);
-            info!("target: {:?}", attacker);
-            info!("dir: {:?}", dir);
 
             packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }

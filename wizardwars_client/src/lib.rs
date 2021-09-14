@@ -40,8 +40,7 @@ impl Plugin for ClientPlugin {
 
 fn update_translation_system(mut players: Query<(&Position, &mut Transform), Changed<Position>>) {
     for (position, mut transform) in players.iter_mut() {
-        transform.translation.x = position.0.x;
-        transform.translation.z = position.0.z;
+        transform.translation = position.0;
     }
 }
 
