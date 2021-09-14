@@ -11,6 +11,12 @@ pub struct Uuid(pub u32);
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct Client(pub u32);
 
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, Hash)]
+pub struct Player;
+
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, Hash)]
+pub struct Bot;
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);
 
@@ -25,3 +31,6 @@ pub enum ReadyState {
     Ready,
     NotReady,
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+pub struct Waypoint(pub Vec3);

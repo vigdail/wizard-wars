@@ -8,6 +8,7 @@ pub enum LobbyClientMessage {
     Join(String),
     ChangeReadyState(ReadyState),
     GetPlayerList,
+    AddBot,
     StartGame,
 }
 

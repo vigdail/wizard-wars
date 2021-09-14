@@ -7,7 +7,7 @@ use crate::{
 };
 use bevy::prelude::*;
 use wizardwars_shared::{
-    components::{Client, Uuid},
+    components::{Client, Player, Uuid},
     messages::server_messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
 };
 
@@ -52,8 +52,8 @@ fn notify_clients(
     )));
 }
 
-fn create_arena(mut cmd: Commands, clients: Query<Entity, With<Client>>) {
-    let clients_count = clients.iter().count() as u32;
+fn create_arena(mut cmd: Commands, players: Query<Entity, With<Player>>) {
+    let clients_count = players.iter().count() as u32;
 
     let spawn_points = SpawnPointsBuilder::new()
         .with_circle_points(clients_count, 1.0)

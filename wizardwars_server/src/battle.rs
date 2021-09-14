@@ -1,8 +1,9 @@
 use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
 use bevy::prelude::*;
+use rand::Rng;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Client, Dead, Health, Position, Uuid, Winner},
+    components::{Bot, Client, Dead, Health, Player, Position, Uuid, Waypoint, Winner},
     messages::server_messages::ServerMessage,
 };
 
@@ -21,7 +22,7 @@ impl Plugin for BattlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(BattleState::None)
             .add_system_set(
-                SystemSet::on_enter(ServerState::Battle).with_system(setup_clients.system()),
+                SystemSet::on_enter(ServerState::Battle).with_system(setup_players.system()),
             )
             .add_system_set(
                 SystemSet::on_update(BattleState::Battle)
@@ -31,7 +32,9 @@ impl Plugin for BattlePlugin {
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
-                    .with_system(debug_dead_message_system.system()),
+                    .with_system(debug_dead_message_system.system())
+                    .with_system(bot_waypoint_system.system())
+                    .with_system(move_to_waypoint_system.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::Battle).with_system(cleanup_system.system()),
@@ -51,12 +54,12 @@ impl Plugin for BattlePlugin {
     }
 }
 
-fn setup_clients(
+fn setup_players(
     mut cmd: Commands,
     arena: Res<Arena>,
     mut battle_state: ResMut<State<BattleState>>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(Entity, &Uuid, &Client)>,
+    clients: Query<(Entity, &Uuid, Option<&Client>), With<Player>>,
 ) {
     battle_state
         .overwrite_set(BattleState::Prepare)
@@ -69,14 +72,19 @@ fn setup_clients(
             cmd.entity(entity)
                 .insert(Health::new(20))
                 .insert(Position(*point));
-            packets.send(ServerPacket::except(
-                ServerMessage::InsertPlayer(*id, *point),
-                *client,
-            ));
-            packets.send(ServerPacket::single(
-                ServerMessage::InsertLocalPlayer(*id, *point),
-                *client,
-            ));
+
+            if let Some(client) = client {
+                packets.send(ServerPacket::except(
+                    ServerMessage::InsertPlayer(*id, *point),
+                    *client,
+                ));
+                packets.send(ServerPacket::single(
+                    ServerMessage::InsertLocalPlayer(*id, *point),
+                    *client,
+                ));
+            } else {
+                packets.send(ServerPacket::all(ServerMessage::InsertPlayer(*id, *point)));
+            }
         });
 }
 
@@ -124,7 +132,7 @@ fn handle_health_system(mut cmd: Commands, query: Query<(Entity, &Health), Chang
     }
 }
 
-fn check_winer_system(mut cmd: Commands, query: Query<Entity, (With<Client>, Without<Dead>)>) {
+fn check_winer_system(mut cmd: Commands, query: Query<Entity, (With<Player>, Without<Dead>)>) {
     if let Ok(entity) = query.single() {
         cmd.entity(entity).insert(Winner);
     }
@@ -203,5 +211,29 @@ fn check_preparation_timer(
         battle_state
             .set(BattleState::Battle)
             .expect("Unable to switch battle state");
+    }
+}
+
+fn bot_waypoint_system(mut cmd: Commands, query: Query<Entity, (With<Bot>, Without<Waypoint>)>) {
+    let mut rng = rand::thread_rng();
+    for entity in query.iter() {
+        let target_position = Vec3::new(rng.gen_range(-5.0..5.0), 0.0, rng.gen_range(-5.0..5.0));
+        cmd.entity(entity).insert(Waypoint(target_position));
+    }
+}
+
+fn move_to_waypoint_system(
+    mut cmd: Commands,
+    mut query: Query<(Entity, &mut Position, &Waypoint)>,
+    time: Res<Time>,
+) {
+    let speed = 1.0;
+    for (entity, mut position, waypoint) in query.iter_mut() {
+        let target = waypoint.0;
+        let dir = (target - position.0).normalize();
+        position.0 += dir * time.delta_seconds() * speed;
+        if (position.0 - target).length() < 0.01 {
+            cmd.entity(entity).remove::<Waypoint>();
+        }
     }
 }

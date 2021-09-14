@@ -4,7 +4,7 @@ use super::{
 };
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
-    components::{Client, ReadyState, Uuid},
+    components::{Bot, Client, Player, ReadyState, Uuid},
     messages::server_messages::{LobbyServerMessage, ServerMessage},
     network::Pack,
 };
@@ -23,6 +23,7 @@ impl LobbyEvent {
 pub enum LobbyEventEntry {
     ClientJoined(String),
     ReadyChanged(ReadyState),
+    CreateBot,
     StartGame,
 }
 
@@ -44,6 +45,7 @@ impl Plugin for LobbyPlugin {
                 SystemSet::on_update(ServerState::Lobby)
                     .with_system(handle_client_joined.system())
                     .with_system(handle_client_ready_events.system())
+                    .with_system(handle_create_bot.system())
                     .with_system(handle_ready_changed.system())
                     .with_system(handle_start_game_event.system()),
             );
@@ -79,6 +81,7 @@ fn handle_client_joined(
 
             cmd.spawn()
                 .insert(client)
+                .insert(Player)
                 .insert(client_name.clone())
                 .insert(ReadyState::NotReady)
                 .insert(network_id);
@@ -109,6 +112,51 @@ fn handle_client_joined(
     }
 }
 
+fn handle_create_bot(
+    mut cmd: Commands,
+    mut lobby_evets: EventReader<LobbyEvent>,
+    mut host: ResMut<Host>,
+    mut id_factory: ResMut<IdFactory>,
+    mut packets: EventWriter<ServerPacket>,
+    clients: Query<(&Uuid, &Client)>,
+) {
+    let clients_map = clients
+        .iter()
+        .map(|(&id, client)| (client, id))
+        .collect::<HashMap<_, _>>();
+    for event in lobby_evets.iter() {
+        let client = event.client;
+        if clients_map
+            .get(&client)
+            .map_or(false, |id| !host.is_host(id))
+        {
+            error!("Only host can request bot creation");
+            continue;
+        }
+
+        if let LobbyEventEntry::CreateBot = &event.event {
+            let network_id = id_factory.generate();
+
+            if host.0.is_none() {
+                host.0 = Some(network_id);
+            }
+
+            let name = Name::new("BOT");
+
+            cmd.spawn()
+                .insert(Player)
+                .insert(Bot)
+                .insert(name.clone())
+                .insert(ReadyState::Ready)
+                .insert(network_id);
+
+            packets.send(Pack::all(ServerMessage::Lobby(
+                LobbyServerMessage::PlayerJoined(network_id, name.as_str().to_owned()),
+            )));
+        }
+    }
+}
+
 fn handle_client_ready_events(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
@@ -131,18 +179,18 @@ fn handle_client_ready_events(
 fn handle_ready_changed(
     mut cmd: Commands,
     mut packets: EventWriter<ServerPacket>,
-    changed_clients: Query<Entity, (With<Client>, Changed<ReadyState>)>,
-    all_clients: Query<(Entity, &ReadyState), With<Client>>,
+    changed_players: Query<Entity, (With<Player>, Changed<ReadyState>)>,
+    all_players: Query<(Entity, &ReadyState), With<Player>>,
 ) {
     // TODO: This should be turned into run criteria
-    if changed_clients.iter().next().is_none() {
+    if changed_players.iter().next().is_none() {
         return;
     }
 
-    let all_ready = all_clients
+    let all_ready = all_players
         .iter()
         .all(|(_, ready_state)| *ready_state == ReadyState::Ready);
-    let clients_count = all_clients.iter().count();
+    let clients_count = all_players.iter().count();
 
     let lobby_ready_state = if all_ready && clients_count > 1 {
         ReadyState::Ready
