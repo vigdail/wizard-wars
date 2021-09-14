@@ -31,3 +31,6 @@ pub enum ReadyState {
     Ready,
     NotReady,
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Copy, Clone)]
+pub struct Waypoint(pub Vec3);

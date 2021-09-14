@@ -1,8 +1,9 @@
 use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
 use bevy::prelude::*;
+use rand::Rng;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Client, Dead, Health, Player, Position, Uuid, Winner},
+    components::{Bot, Client, Dead, Health, Player, Position, Uuid, Waypoint, Winner},
     messages::server_messages::ServerMessage,
 };
 
@@ -31,7 +32,9 @@ impl Plugin for BattlePlugin {
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
-                    .with_system(debug_dead_message_system.system()),
+                    .with_system(debug_dead_message_system.system())
+                    .with_system(bot_waypoint_system.system())
+                    .with_system(move_to_waypoint_system.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::Battle).with_system(cleanup_system.system()),
@@ -208,5 +211,29 @@ fn check_preparation_timer(
         battle_state
             .set(BattleState::Battle)
             .expect("Unable to switch battle state");
+    }
+}
+
+fn bot_waypoint_system(mut cmd: Commands, query: Query<Entity, (With<Bot>, Without<Waypoint>)>) {
+    let mut rng = rand::thread_rng();
+    for entity in query.iter() {
+        let target_position = Vec3::new(rng.gen_range(-5.0..5.0), 0.0, rng.gen_range(-5.0..5.0));
+        cmd.entity(entity).insert(Waypoint(target_position));
+    }
+}
+
+fn move_to_waypoint_system(
+    mut cmd: Commands,
+    mut query: Query<(Entity, &mut Position, &Waypoint)>,
+    time: Res<Time>,
+) {
+    let speed = 1.0;
+    for (entity, mut position, waypoint) in query.iter_mut() {
+        let target = waypoint.0;
+        let dir = (target - position.0).normalize();
+        position.0 += dir * time.delta_seconds() * speed;
+        if (position.0 - target).length() < 0.01 {
+            cmd.entity(entity).remove::<Waypoint>();
+        }
     }
 }
