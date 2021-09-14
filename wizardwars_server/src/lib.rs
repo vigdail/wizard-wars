@@ -12,6 +12,7 @@ use battle::BattlePlugin;
 use bevy::app::ScheduleRunnerSettings;
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
+use bevy_rapier3d::physics::{NoUserData, RapierPhysicsPlugin};
 use loading::WaitLoadingPlugin;
 use lobby::LobbyPlugin;
 use network::NetworkPlugin;
@@ -43,6 +44,7 @@ impl Plugin for ServerPlugin {
         .add_system_set(
             SystemSet::on_update(ServerState::Init).with_system(check_init_system.system()),
         )
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(MinimalPlugins)
         .add_plugin(LogPlugin::default())
         .add_plugin(NetworkPlugin)

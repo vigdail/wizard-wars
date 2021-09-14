@@ -21,9 +21,6 @@ pub struct Bot;
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
-pub struct Velocity(pub Vec3);
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct Dead;
 

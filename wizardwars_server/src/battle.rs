@@ -5,20 +5,21 @@ use crate::{
     ActionEvent,
 };
 use bevy::prelude::*;
+use bevy_rapier3d::{
+    physics::{RigidBodyBundle, RigidBodyPositionSync},
+    prelude::RigidBodyVelocity,
+};
 use rand::Rng;
 use std::collections::HashMap;
 use wizardwars_shared::{
     components::{
         damage::{Attack, FireBall},
-        Bot, Client, Dead, Health, LifeTime, Player, Position, Uuid, Velocity, Waypoint, Winner,
+        Bot, Client, Dead, Health, LifeTime, Player, Position, Uuid, Waypoint, Winner,
     },
     events::SpawnEvent,
     network::Pack,
 };
-use wizardwars_shared::{
-    messages::server_messages::ServerMessage,
-    systems::{apply_damage_system, move_system},
-};
+use wizardwars_shared::{messages::server_messages::ServerMessage, systems::apply_damage_system};
 
 pub struct BattlePlugin;
 
@@ -43,14 +44,14 @@ impl Plugin for BattlePlugin {
                     .with_system(handle_health_system.system())
                     .with_system(check_winer_system.system())
                     .with_system(apply_damage_system.system())
-                    .with_system(move_system.system())
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
                     .with_system(debug_dead_message_system.system())
                     .with_system(bot_waypoint_system.system())
                     .with_system(move_to_waypoint_system.system())
-                    .with_system(track_lifetime_system.system()),
+                    .with_system(track_lifetime_system.system())
+                    .with_system(position_sync_system.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::Battle).with_system(cleanup_system.system()),
@@ -123,15 +124,31 @@ fn handle_attack_events_system(
             let id = id_factory.generate();
             cmd.spawn()
                 .insert(Position(attacker))
-                .insert(Velocity(-dir * 5.0))
                 .insert(FireBall {
                     attack: Attack::new(10),
                 })
-                .insert(LifeTime::from_seconds(1.0))
+                .insert(LifeTime::from_seconds(5.0))
+                .insert(Transform::identity())
+                .insert_bundle(RigidBodyBundle {
+                    position: attacker.into(),
+                    velocity: RigidBodyVelocity {
+                        linvel: (-dir * 5.0).into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })
+                .insert(RigidBodyPositionSync::Discrete)
                 .insert(id);
 
             packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }
+    }
+}
+
+// TODO: Should be called right after some rigidbody_positions_sync system
+fn position_sync_system(mut query: Query<(&Transform, &mut Position), Changed<Transform>>) {
+    for (transform, mut position) in query.iter_mut() {
+        position.0 = transform.translation;
     }
 }
 
