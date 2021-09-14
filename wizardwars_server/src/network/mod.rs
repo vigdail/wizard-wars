@@ -124,6 +124,9 @@ fn read_network_channels_system(
                     LobbyClientMessage::StartGame => {
                         lobby_events.send(LobbyEvent::new(client, LobbyEventEntry::StartGame));
                     }
+                    LobbyClientMessage::AddBot => {
+                        lobby_events.send(LobbyEvent::new(client, LobbyEventEntry::CreateBot))
+                    }
                 },
                 ClientMessage::Action(e) => match e {
                     ActionMessage::Move(dir) => {

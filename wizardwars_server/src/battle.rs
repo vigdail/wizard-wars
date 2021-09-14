@@ -2,7 +2,7 @@ use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEven
 use bevy::prelude::*;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Client, Dead, Health, Position, Uuid, Winner},
+    components::{Client, Dead, Health, Player, Position, Uuid, Winner},
     messages::server_messages::ServerMessage,
 };
 
@@ -21,7 +21,7 @@ impl Plugin for BattlePlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_state(BattleState::None)
             .add_system_set(
-                SystemSet::on_enter(ServerState::Battle).with_system(setup_clients.system()),
+                SystemSet::on_enter(ServerState::Battle).with_system(setup_players.system()),
             )
             .add_system_set(
                 SystemSet::on_update(BattleState::Battle)
@@ -51,12 +51,12 @@ impl Plugin for BattlePlugin {
     }
 }
 
-fn setup_clients(
+fn setup_players(
     mut cmd: Commands,
     arena: Res<Arena>,
     mut battle_state: ResMut<State<BattleState>>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(Entity, &Uuid, &Client)>,
+    clients: Query<(Entity, &Uuid, Option<&Client>), With<Player>>,
 ) {
     battle_state
         .overwrite_set(BattleState::Prepare)
@@ -69,14 +69,19 @@ fn setup_clients(
             cmd.entity(entity)
                 .insert(Health::new(20))
                 .insert(Position(*point));
-            packets.send(ServerPacket::except(
-                ServerMessage::InsertPlayer(*id, *point),
-                *client,
-            ));
-            packets.send(ServerPacket::single(
-                ServerMessage::InsertLocalPlayer(*id, *point),
-                *client,
-            ));
+
+            if let Some(client) = client {
+                packets.send(ServerPacket::except(
+                    ServerMessage::InsertPlayer(*id, *point),
+                    *client,
+                ));
+                packets.send(ServerPacket::single(
+                    ServerMessage::InsertLocalPlayer(*id, *point),
+                    *client,
+                ));
+            } else {
+                packets.send(ServerPacket::all(ServerMessage::InsertPlayer(*id, *point)));
+            }
         });
 }
 
@@ -124,7 +129,7 @@ fn handle_health_system(mut cmd: Commands, query: Query<(Entity, &Health), Chang
     }
 }
 
-fn check_winer_system(mut cmd: Commands, query: Query<Entity, (With<Client>, Without<Dead>)>) {
+fn check_winer_system(mut cmd: Commands, query: Query<Entity, (With<Player>, Without<Dead>)>) {
     if let Ok(entity) = query.single() {
         cmd.entity(entity).insert(Winner);
     }

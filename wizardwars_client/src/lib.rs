@@ -81,4 +81,8 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
             target: Uuid(0),
         }));
     }
+
+    if input.just_pressed(KeyCode::B) {
+        net.broadcast_message(ClientMessage::LobbyMessage(LobbyClientMessage::AddBot));
+    }
 }
