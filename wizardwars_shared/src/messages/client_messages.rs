@@ -16,6 +16,7 @@ pub enum LobbyClientMessage {
 pub enum ActionMessage {
     Move(Vec2),
     Attack { target: Uuid },
+    FireBall,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

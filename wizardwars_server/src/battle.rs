@@ -1,10 +1,23 @@
-use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
+use crate::{
+    arena::Arena,
+    network::{IdFactory, ServerPacket},
+    states::ServerState,
+    ActionEvent,
+};
 use bevy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
 use wizardwars_shared::{
-    components::{Bot, Client, Dead, Health, Player, Position, Uuid, Waypoint, Winner},
+    components::{
+        damage::{Attack, FireBall},
+        Bot, Client, Dead, Health, LifeTime, Player, Position, Uuid, Velocity, Waypoint, Winner,
+    },
+    events::SpawnEvent,
+    network::Pack,
+};
+use wizardwars_shared::{
     messages::server_messages::ServerMessage,
+    systems::{apply_damage_system, move_system},
 };
 
 pub struct BattlePlugin;
@@ -29,12 +42,15 @@ impl Plugin for BattlePlugin {
                     .with_system(handle_attack_events_system.system())
                     .with_system(handle_health_system.system())
                     .with_system(check_winer_system.system())
+                    .with_system(apply_damage_system.system())
+                    .with_system(move_system.system())
                     .with_system(check_switch_state_system.system())
                     .with_system(debug_health_change_system.system())
                     .with_system(debug_winner_change_system.system())
                     .with_system(debug_dead_message_system.system())
                     .with_system(bot_waypoint_system.system())
-                    .with_system(move_to_waypoint_system.system()),
+                    .with_system(move_to_waypoint_system.system())
+                    .with_system(track_lifetime_system.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::Battle).with_system(cleanup_system.system()),
@@ -88,20 +104,33 @@ fn setup_players(
         });
 }
 
+#[allow(clippy::type_complexity)]
 fn handle_attack_events_system(
+    mut cmd: Commands,
+    mut id_factory: ResMut<IdFactory>,
     mut events: EventReader<ActionEvent>,
-    mut query: Query<(&Uuid, &mut Health), Without<Dead>>,
+    query: Query<(&Position, &Client), (With<Health>, Without<Dead>)>,
+    mut packets: EventWriter<ServerPacket>,
 ) {
-    let mut map = query
-        .iter_mut()
-        .map(|(id, health)| (id, health))
-        .collect::<HashMap<_, _>>();
-
+    let map = query.iter().map(|(p, c)| (c, p)).collect::<HashMap<_, _>>();
+    let mut rng = rand::thread_rng();
     for event in events.iter() {
-        if let ActionEvent::Attack(_, target) = &event {
-            if let Some(target_health) = map.get_mut(target) {
-                target_health.change_by(-10);
-            }
+        if let ActionEvent::FireBall(client) = &event {
+            let offset = 0.5;
+            let attacker = map.get(client).unwrap().0 + Vec3::Y * offset;
+            let target = Vec3::new(rng.gen_range(-5.0..5.0), offset, rng.gen_range(-5.0..5.0));
+            let dir = (attacker - target).normalize();
+            let id = id_factory.generate();
+            cmd.spawn()
+                .insert(Position(attacker))
+                .insert(Velocity(-dir * 5.0))
+                .insert(FireBall {
+                    attack: Attack::new(10),
+                })
+                .insert(LifeTime::from_seconds(1.0))
+                .insert(id);
+
+            packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }
     }
 }
@@ -117,7 +146,7 @@ fn handle_move_events_system(
             if let ActionEvent::Move(handle, dir) = &event {
                 let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
                 if h == handle {
-                    position.0 += offset * time.delta().as_millis() as f32 / 1000.0;
+                    position.0 += offset * time.delta_seconds();
                 }
             }
         }
@@ -234,6 +263,22 @@ fn move_to_waypoint_system(
         position.0 += dir * time.delta_seconds() * speed;
         if (position.0 - target).length() < 0.01 {
             cmd.entity(entity).remove::<Waypoint>();
+        }
+    }
+}
+
+fn track_lifetime_system(
+    mut cmd: Commands,
+    mut query: Query<(Entity, &mut LifeTime, Option<&Uuid>)>,
+    mut packets: EventWriter<ServerPacket>,
+    time: ResMut<Time>,
+) {
+    for (entity, mut lifetime, id) in query.iter_mut() {
+        if lifetime.timer.tick(time.delta()).just_finished() {
+            cmd.entity(entity).despawn();
+            if let Some(&id) = id {
+                packets.send(Pack::all(ServerMessage::Despawn(id)));
+            }
         }
     }
 }

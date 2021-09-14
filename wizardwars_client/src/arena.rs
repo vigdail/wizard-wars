@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
-use wizardwars_shared::components::Uuid;
+use wizardwars_shared::{components::Uuid, events::SpawnEvent};
 
 pub struct InsertPlayerEvent {
     pub id: Uuid,
@@ -17,8 +17,10 @@ pub struct ArenaPlugin;
 impl Plugin for ArenaPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<InsertPlayerEvent>()
+            .add_event::<SpawnEvent>()
             .add_startup_system(setup_world_system.system())
-            .add_system(spawn_player_system.system());
+            .add_system(spawn_player_system.system())
+            .add_system(handle_spawn_events.system());
     }
 }
 
@@ -97,4 +99,37 @@ fn spawn_player_system(
             }
         }
     }
+}
+
+fn handle_spawn_events(
+    mut events: EventReader<SpawnEvent>,
+    mut cmd: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    for event in events.iter() {
+        match event {
+            SpawnEvent::Projectile(id) => {
+                spawn_projectile(&mut cmd, &mut meshes, &mut materials, *id)
+            }
+        }
+    }
+}
+
+fn spawn_projectile(
+    cmd: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    id: Uuid,
+) {
+    cmd.spawn_bundle(PbrBundle {
+        mesh: meshes.add(Mesh::from(shape::Icosphere {
+            radius: 0.1,
+            subdivisions: 2,
+        })),
+        transform: Transform::identity(),
+        material: materials.add(Color::rgb(0.9, 0.3, 0.2).into()),
+        ..Default::default()
+    })
+    .insert(id);
 }

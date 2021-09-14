@@ -23,6 +23,7 @@ fn send_statistics() {
 }
 
 fn disconnect_all_clients(mut net: ResMut<NetworkResource>) {
+    info!("Disconnecting all clients");
     let connections = net
         .connections
         .iter()

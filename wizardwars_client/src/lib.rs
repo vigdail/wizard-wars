@@ -5,7 +5,7 @@ use camera::CameraPlugin;
 use lobby::LobbyPlugin;
 use network::{read_component_channel_system, NetworkPlugin};
 use wizardwars_shared::{
-    components::{Position, ReadyState, Uuid},
+    components::{Position, ReadyState},
     messages::client_messages::{ActionMessage, ClientMessage, LobbyClientMessage},
 };
 
@@ -40,8 +40,7 @@ impl Plugin for ClientPlugin {
 
 fn update_translation_system(mut players: Query<(&Position, &mut Transform), Changed<Position>>) {
     for (position, mut transform) in players.iter_mut() {
-        transform.translation.x = position.0.x;
-        transform.translation.z = position.0.z;
+        transform.translation = position.0;
     }
 }
 
@@ -77,9 +76,7 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
     }
 
     if input.just_pressed(KeyCode::Key1) {
-        net.broadcast_message(ClientMessage::Action(ActionMessage::Attack {
-            target: Uuid(0),
-        }));
+        net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall));
     }
 
     if input.just_pressed(KeyCode::B) {
