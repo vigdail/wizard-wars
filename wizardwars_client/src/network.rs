@@ -8,7 +8,7 @@ use std::{
 use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
     components::Uuid,
-    events::DespawnEntityEvent,
+    events::{DespawnEntityEvent, SpawnEvent},
     messages::{
         client_messages::{ClientMessage, LobbyClientMessage},
         network_channels_setup,
@@ -100,6 +100,7 @@ fn read_server_message_channel_system(
     mut insert_player_events: EventWriter<InsertPlayerEvent>,
     mut remove_player_events: EventWriter<DespawnEntityEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
+    mut spawn_events: EventWriter<SpawnEvent>,
 ) {
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
@@ -136,6 +137,9 @@ fn read_server_message_channel_system(
                         position,
                         is_local: false,
                     });
+                }
+                ServerMessage::Spawn(spawn) => {
+                    spawn_events.send(spawn);
                 }
                 ServerMessage::Despawn(id) => {
                     remove_player_events.send(DespawnEntityEvent { id });

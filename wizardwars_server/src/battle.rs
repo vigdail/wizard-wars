@@ -1,10 +1,19 @@
-use crate::{arena::Arena, network::ServerPacket, states::ServerState, ActionEvent};
+use crate::{
+    arena::Arena,
+    network::{IdFactory, ServerPacket},
+    states::ServerState,
+    ActionEvent,
+};
 use bevy::prelude::*;
 use rand::Rng;
 use std::collections::HashMap;
-use wizardwars_shared::components::{
-    damage::{Attack, FireBall},
-    Bot, Client, Dead, Health, Player, Position, Uuid, Velocity, Waypoint, Winner,
+use wizardwars_shared::{
+    components::{
+        damage::{Attack, FireBall},
+        Bot, Client, Dead, Health, LifeTime, Player, Position, Uuid, Velocity, Waypoint, Winner,
+    },
+    events::SpawnEvent,
+    network::Pack,
 };
 use wizardwars_shared::{
     messages::server_messages::ServerMessage,
@@ -43,7 +52,8 @@ impl Plugin for BattlePlugin {
                     .with_system(debug_winner_change_system.system())
                     .with_system(debug_dead_message_system.system())
                     .with_system(bot_waypoint_system.system())
-                    .with_system(move_to_waypoint_system.system()),
+                    .with_system(move_to_waypoint_system.system())
+                    .with_system(track_lifetime_system.system()),
             )
             .add_system_set(
                 SystemSet::on_exit(ServerState::Battle).with_system(cleanup_system.system()),
@@ -97,36 +107,39 @@ fn setup_players(
         });
 }
 
+#[allow(clippy::type_complexity)]
 fn handle_attack_events_system(
     mut cmd: Commands,
+    mut id_factory: ResMut<IdFactory>,
     mut events: EventReader<ActionEvent>,
     query: Query<(&Position, &Client), (With<Health>, Without<Dead>)>,
+    mut packets: EventWriter<ServerPacket>,
 ) {
     let map = query.iter().map(|(p, c)| (c, p)).collect::<HashMap<_, _>>();
+    let mut rng = rand::thread_rng();
     for event in events.iter() {
         if let ActionEvent::FireBall(client) = &event {
             // if let Some(target_health) = map.get_mut(target) {
             //     target_health.change_by(-10);
             // }
-            let attacker = **map.get(client).unwrap();
-            for (target_position, c) in query.iter() {
-                if c == client {
-                    continue;
-                }
-                let dir = (attacker.0 - target_position.0).normalize();
-                cmd.spawn()
-                    .insert(attacker)
-                    .insert(Velocity(-dir * 5.0))
-                    .insert(FireBall {
-                        attack: Attack::new(10),
-                    });
+            let attacker = map.get(client).unwrap().0;
+            let target = Vec3::new(rng.gen_range(-5.0..5.0), 0.0, rng.gen_range(-5.0..5.0));
+            let dir = (attacker - target).normalize();
+            let id = id_factory.generate();
+            cmd.spawn()
+                .insert(Position(attacker))
+                .insert(Velocity(-dir * 5.0))
+                .insert(FireBall {
+                    attack: Attack::new(10),
+                })
+                .insert(LifeTime::from_seconds(1.0))
+                .insert(id);
 
-                info!("attacker: {:?}", attacker);
-                info!("target: {:?}", attacker);
-                info!("dir: {:?}", dir);
+            info!("attacker: {:?}", attacker);
+            info!("target: {:?}", attacker);
+            info!("dir: {:?}", dir);
 
-                break;
-            }
+            packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }
     }
 }
@@ -259,6 +272,22 @@ fn move_to_waypoint_system(
         position.0 += dir * time.delta_seconds() * speed;
         if (position.0 - target).length() < 0.01 {
             cmd.entity(entity).remove::<Waypoint>();
+        }
+    }
+}
+
+fn track_lifetime_system(
+    mut cmd: Commands,
+    mut query: Query<(Entity, &mut LifeTime, Option<&Uuid>)>,
+    mut packets: EventWriter<ServerPacket>,
+    time: ResMut<Time>,
+) {
+    for (entity, mut lifetime, id) in query.iter_mut() {
+        if lifetime.timer.tick(time.delta()).just_finished() {
+            cmd.entity(entity).despawn();
+            if let Some(&id) = id {
+                packets.send(Pack::all(ServerMessage::Despawn(id)));
+            }
         }
     }
 }

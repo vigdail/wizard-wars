@@ -50,3 +50,16 @@ impl Owner {
         self.0
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct LifeTime {
+    pub timer: Timer,
+}
+
+impl LifeTime {
+    pub fn from_seconds(duration: f32) -> Self {
+        Self {
+            timer: Timer::from_seconds(duration, false),
+        }
+    }
+}
