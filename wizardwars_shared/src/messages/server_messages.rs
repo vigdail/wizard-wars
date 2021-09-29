@@ -1,5 +1,6 @@
 use crate::{
     components::{ReadyState, Uuid},
+    enum_from,
     events::SpawnEvent,
 };
 use bevy::prelude::*;
@@ -44,20 +45,24 @@ pub enum ServerMessage {
     Despawn(Uuid),
 }
 
-impl From<LobbyServerMessage> for ServerMessage {
-    fn from(message: LobbyServerMessage) -> Self {
-        Self::Lobby(message)
-    }
-}
+enum_from!(ServerMessage, Lobby, LobbyServerMessage);
+enum_from!(ServerMessage, Loading, LoadingServerMessage);
+enum_from!(ServerMessage, Shopping, ShoppingServerMessage);
 
-impl From<LoadingServerMessage> for ServerMessage {
-    fn from(message: LoadingServerMessage) -> Self {
-        Self::Loading(message)
-    }
-}
+// impl From<LobbyServerMessage> for ServerMessage {
+//     fn from(message: LobbyServerMessage) -> Self {
+//         Self::Lobby(message)
+//     }
+// }
 
-impl From<ShoppingServerMessage> for ServerMessage {
-    fn from(message: ShoppingServerMessage) -> Self {
-        Self::Shopping(message)
-    }
-}
+// impl From<LoadingServerMessage> for ServerMessage {
+//     fn from(message: LoadingServerMessage) -> Self {
+//         Self::Loading(message)
+//     }
+// }
+
+// impl From<ShoppingServerMessage> for ServerMessage {
+//     fn from(message: ShoppingServerMessage) -> Self {
+//         Self::Shopping(message)
+//     }
+// }
