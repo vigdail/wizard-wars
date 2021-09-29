@@ -5,20 +5,12 @@ use super::{
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
     components::{Bot, Client, Player, ReadyState, Uuid},
+    events::ClientEvent,
     messages::server_messages::{LobbyServerMessage, ServerMessage},
     network::Pack,
 };
 
-pub struct LobbyEvent {
-    client: Client,
-    event: LobbyEventEntry,
-}
-
-impl LobbyEvent {
-    pub fn new(client: Client, event: LobbyEventEntry) -> Self {
-        Self { client, event }
-    }
-}
+pub type LobbyEvent = ClientEvent<LobbyEventEntry>;
 
 pub enum LobbyEventEntry {
     ClientJoined(String),
@@ -69,8 +61,8 @@ fn handle_client_joined(
     clients: Query<(&Uuid, &Name), With<Client>>,
 ) {
     for event in lobby_evets.iter() {
-        let client = event.client;
-        if let LobbyEventEntry::ClientJoined(name) = &event.event {
+        let client = event.client().clone();
+        if let LobbyEventEntry::ClientJoined(name) = event.event() {
             let network_id = id_factory.generate();
 
             if host.0.is_none() {
@@ -125,7 +117,7 @@ fn handle_create_bot(
         .map(|(&id, client)| (client, id))
         .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        let client = event.client;
+        let client = event.client();
         if clients_map
             .get(&client)
             .map_or(false, |id| !host.is_host(id))
@@ -134,7 +126,7 @@ fn handle_create_bot(
             continue;
         }
 
-        if let LobbyEventEntry::CreateBot = &event.event {
+        if let LobbyEventEntry::CreateBot = event.event() {
             let network_id = id_factory.generate();
 
             if host.0.is_none() {
@@ -167,8 +159,8 @@ fn handle_client_ready_events(
         .map(|(entity, client)| (client, entity))
         .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        let client = &event.client;
-        if let LobbyEventEntry::ReadyChanged(ready) = &event.event {
+        let client = event.client();
+        if let LobbyEventEntry::ReadyChanged(ready) = event.event() {
             if let Some(&entity) = clients_map.get(client) {
                 cmd.entity(entity).insert(*ready);
             }
@@ -217,8 +209,8 @@ fn handle_start_game_event(
         .map(|(client, id)| (client, id))
         .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        let client = &event.client;
-        if let LobbyEventEntry::StartGame = &event.event {
+        let client = event.client();
+        if let LobbyEventEntry::StartGame = event.event() {
             if let Some(&client_id) = clients_map.get(client) {
                 if host.is_host(client_id) {
                     if *lobby_ready_state == LobbyReadyState(ReadyState::Ready) {
