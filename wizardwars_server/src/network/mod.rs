@@ -8,7 +8,7 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, Position, Uuid};
 use wizardwars_shared::messages::client_messages::{
-    ActionMessage, ClientMessage, LobbyClientMessage,
+    ActionMessage, ClientMessage, LobbyClientMessage, Validate,
 };
 use wizardwars_shared::messages::{network_channels_setup, server_messages::ServerMessage};
 use wizardwars_shared::network::{Dest, Pack};
@@ -29,6 +29,7 @@ impl IdFactory {
 pub struct Host(pub Option<Uuid>);
 
 impl Host {
+    #[allow(dead_code)]
     pub fn is_host(&self, id: &Uuid) -> bool {
         Some(*id) == self.0
     }
@@ -107,12 +108,25 @@ fn read_network_channels_system(
     mut action_events: EventWriter<ActionEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
     mut loading_events: EventWriter<LoadCompleteEvent>,
+    host: Res<Host>,
+    query: Query<(&Client, &Uuid)>,
 ) {
+    let client_map = query
+        .iter()
+        .map(|(client, &id)| (client, id))
+        .collect::<HashMap<_, _>>();
+
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         let client = Client(*handle);
+        let client_id = client_map.get(&client);
         while let Some(message) = channels.recv::<ClientMessage>() {
+            if !message.validate(client_id, &host.0.unwrap_or_default()) {
+                error!("Only host can use: {:?}", message);
+                continue;
+            }
+
             match message {
                 ClientMessage::LobbyMessage(msg) => match msg {
                     LobbyClientMessage::Join(name) => lobby_events

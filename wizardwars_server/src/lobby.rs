@@ -110,22 +110,8 @@ fn handle_create_bot(
     mut host: ResMut<Host>,
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(&Uuid, &Client)>,
 ) {
-    let clients_map = clients
-        .iter()
-        .map(|(&id, client)| (client, id))
-        .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        let client = event.client();
-        if clients_map
-            .get(&client)
-            .map_or(false, |id| !host.is_host(id))
-        {
-            error!("Only host can request bot creation");
-            continue;
-        }
-
         if let LobbyEventEntry::CreateBot = event.event() {
             let network_id = id_factory.generate();
 
@@ -200,32 +186,16 @@ fn handle_ready_changed(
 fn handle_start_game_event(
     mut app_state: ResMut<State<ServerState>>,
     mut lobby_evets: EventReader<LobbyEvent>,
-    host: Res<Host>,
     lobby_ready_state: Res<LobbyReadyState>,
-    clients: Query<(&Client, &Uuid)>,
 ) {
-    let clients_map = clients
-        .iter()
-        .map(|(client, id)| (client, id))
-        .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
-        let client = event.client();
         if let LobbyEventEntry::StartGame = event.event() {
-            if let Some(&client_id) = clients_map.get(client) {
-                if host.is_host(client_id) {
-                    if *lobby_ready_state == LobbyReadyState(ReadyState::Ready) {
-                        app_state
-                            .set(ServerState::WaitLoading)
-                            .expect("Cannot change state");
-                    } else {
-                        error!("Cannot start game: some clients are not ready");
-                    }
-                } else {
-                    error!(
-                        "The client ({:?}) is not a host (cannot start game)",
-                        client
-                    );
-                }
+            if *lobby_ready_state == LobbyReadyState(ReadyState::Ready) {
+                app_state
+                    .set(ServerState::WaitLoading)
+                    .expect("Cannot change state");
+            } else {
+                error!("Cannot start game: some clients are not ready");
             }
         }
     }

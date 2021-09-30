@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 pub use health::Health;
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Debug, Default, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Uuid(pub u32);
 
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Copy, Clone, Hash)]
