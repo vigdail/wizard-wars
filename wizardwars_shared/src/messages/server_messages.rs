@@ -48,21 +48,3 @@ pub enum ServerMessage {
 enum_from!(ServerMessage, Lobby, LobbyServerMessage);
 enum_from!(ServerMessage, Loading, LoadingServerMessage);
 enum_from!(ServerMessage, Shopping, ShoppingServerMessage);
-
-// impl From<LobbyServerMessage> for ServerMessage {
-//     fn from(message: LobbyServerMessage) -> Self {
-//         Self::Lobby(message)
-//     }
-// }
-
-// impl From<LoadingServerMessage> for ServerMessage {
-//     fn from(message: LoadingServerMessage) -> Self {
-//         Self::Loading(message)
-//     }
-// }
-
-// impl From<ShoppingServerMessage> for ServerMessage {
-//     fn from(message: ShoppingServerMessage) -> Self {
-//         Self::Shopping(message)
-//     }
-// }

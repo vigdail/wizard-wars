@@ -61,7 +61,7 @@ fn handle_client_joined(
     clients: Query<(&Uuid, &Name), With<Client>>,
 ) {
     for event in lobby_evets.iter() {
-        let client = event.client().clone();
+        let client = *event.client();
         if let LobbyEventEntry::ClientJoined(name) = event.event() {
             let network_id = id_factory.generate();
 
