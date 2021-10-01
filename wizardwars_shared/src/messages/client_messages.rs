@@ -32,7 +32,7 @@ impl Verify for LobbyClientMessage {
 pub enum ActionMessage {
     Move(Vec2),
     Attack { target: Uuid },
-    FireBall,
+    FireBall(Vec3),
 }
 
 impl Verify for ActionMessage {}

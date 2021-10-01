@@ -1,7 +1,8 @@
 use arena::ArenaPlugin;
 use bevy::prelude::*;
 use bevy_mod_picking::{
-    DebugCursorPickingPlugin, DebugEventsPickingPlugin, InteractablePickingPlugin, PickingPlugin,
+    DebugCursorPickingPlugin, DebugEventsPickingPlugin, InteractablePickingPlugin, PickingCamera,
+    PickingPlugin,
 };
 use bevy_networking_turbulence::NetworkResource;
 use camera::CameraPlugin;
@@ -51,23 +52,38 @@ fn update_translation_system(mut players: Query<(&Position, &mut Transform), Cha
     }
 }
 
-fn input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {
+fn input_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mouse_input: Res<Input<MouseButton>>,
+    mut net: ResMut<NetworkResource>,
+    camera_query: Query<&PickingCamera>,
+) {
     let mut dir = Vec2::ZERO;
-    if input.pressed(KeyCode::W) {
+    if keyboard_input.pressed(KeyCode::W) {
         dir.y -= 1.0;
     }
-    if input.pressed(KeyCode::S) {
+    if keyboard_input.pressed(KeyCode::S) {
         dir.y += 1.0;
     }
-    if input.pressed(KeyCode::A) {
+    if keyboard_input.pressed(KeyCode::A) {
         dir.x -= 1.0;
     }
-    if input.pressed(KeyCode::D) {
+    if keyboard_input.pressed(KeyCode::D) {
         dir.x += 1.0;
     }
 
     if dir.length() > 0.0 {
         let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir.normalize())));
+    }
+
+    if mouse_input.just_pressed(MouseButton::Left) {
+        if let Ok(camera) = camera_query.single() {
+            if let Some((_, intersect)) = camera.intersect_top() {
+                net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall(
+                    intersect.position(),
+                )));
+            }
+        }
     }
 }
 
@@ -80,10 +96,6 @@ fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<Network
 
     if input.just_pressed(KeyCode::Space) {
         net.broadcast_message(ClientMessage::LobbyMessage(LobbyClientMessage::StartGame));
-    }
-
-    if input.just_pressed(KeyCode::Key1) {
-        net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall));
     }
 
     if input.just_pressed(KeyCode::B) {

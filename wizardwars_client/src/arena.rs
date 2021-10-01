@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
-use bevy_mod_picking::{InteractablePickingPlugin, PickableBundle, PickingCameraBundle};
+use bevy_mod_picking::{PickableBundle, PickingCameraBundle};
 use wizardwars_shared::{components::Uuid, events::SpawnEvent};
 
 pub struct InsertPlayerEvent {

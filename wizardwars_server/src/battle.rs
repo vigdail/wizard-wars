@@ -114,12 +114,11 @@ fn handle_attack_events_system(
     mut packets: EventWriter<ServerPacket>,
 ) {
     let map = query.iter().map(|(p, c)| (c, p)).collect::<HashMap<_, _>>();
-    let mut rng = rand::thread_rng();
     for event in events.iter() {
-        if let ActionEvent::FireBall(client) = &event {
+        if let ActionEvent::FireBall(client, target) = &event {
             let offset = 0.5;
             let attacker = map.get(client).unwrap().0 + Vec3::Y * offset;
-            let target = Vec3::new(rng.gen_range(-5.0..5.0), offset, rng.gen_range(-5.0..5.0));
+            let target = Vec3::new(target.x, offset, target.z);
             let dir = (attacker - target).normalize();
             let id = id_factory.generate();
             cmd.spawn()
