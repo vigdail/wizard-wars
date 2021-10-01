@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
+use bevy_mod_picking::{InteractablePickingPlugin, PickableBundle, PickingCameraBundle};
 use wizardwars_shared::{components::Uuid, events::SpawnEvent};
 
 pub struct InsertPlayerEvent {
@@ -38,13 +39,15 @@ fn setup_world_system(
         mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
         material: materials.add(map_material),
         ..Default::default()
-    });
+    })
+    .insert_bundle(PickableBundle::default());
 
     cmd.spawn_bundle(PerspectiveCameraBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 5.0, 5.0))
             .looking_at(Vec3::default(), Vec3::Y),
         ..Default::default()
     })
+    .insert_bundle(PickingCameraBundle::default())
     .insert(FollowCamera {
         target: Vec3::ZERO,
         vertical_offset: 1.0,

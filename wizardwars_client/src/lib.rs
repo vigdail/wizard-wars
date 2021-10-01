@@ -1,5 +1,8 @@
 use arena::ArenaPlugin;
 use bevy::prelude::*;
+use bevy_mod_picking::{
+    DebugCursorPickingPlugin, DebugEventsPickingPlugin, InteractablePickingPlugin, PickingPlugin,
+};
 use bevy_networking_turbulence::NetworkResource;
 use camera::CameraPlugin;
 use lobby::LobbyPlugin;
@@ -24,6 +27,10 @@ impl Plugin for ClientPlugin {
             ..Default::default()
         })
         .add_plugins(DefaultPlugins)
+        .add_plugin(PickingPlugin)
+        .add_plugin(InteractablePickingPlugin)
+        .add_plugin(DebugCursorPickingPlugin)
+        .add_plugin(DebugEventsPickingPlugin)
         .add_plugin(CameraPlugin)
         .add_plugin(NetworkPlugin)
         .add_plugin(ArenaPlugin)

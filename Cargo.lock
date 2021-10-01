@@ -504,6 +504,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_mod_picking"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6ca8417890d52798eba3f6ff7c272173933ce7303c7e9f38585dde6756c059c"
+dependencies = [
+ "bevy",
+ "bevy_mod_raycast",
+]
+
+[[package]]
+name = "bevy_mod_raycast"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b699d78034aaf5730a4c10a09fd5a2e6886964a42fa7453b9e5f8b926cd846e"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_networking_turbulence"
 version = "0.3.3"
 source = "git+https://github.com/vigdail/bevy_networking_turbulence.git?branch=bugfix/heartbeat_and_channels#759706cd120e7672bc136d67b548981aaf52bacf"
@@ -4064,6 +4083,7 @@ name = "wizardwars_client"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy_mod_picking",
  "bevy_networking_turbulence",
  "serde",
  "turbulence",
