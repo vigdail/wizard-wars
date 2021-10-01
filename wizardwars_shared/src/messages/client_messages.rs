@@ -2,9 +2,8 @@ use crate::components::{ReadyState, Uuid};
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
-// TODO: proper interface
-pub trait Validate {
-    fn validate(&self, _client: Option<&Uuid>, _host: &Uuid) -> bool {
+pub trait Verify {
+    fn verify(&self, _is_host: bool) -> bool {
         true
     }
 }
@@ -18,13 +17,13 @@ pub enum LobbyClientMessage {
     StartGame,
 }
 
-impl Validate for LobbyClientMessage {
-    fn validate(&self, client: Option<&Uuid>, host: &Uuid) -> bool {
+impl Verify for LobbyClientMessage {
+    fn verify(&self, is_host: bool) -> bool {
         match self {
             LobbyClientMessage::Join(_)
             | LobbyClientMessage::ChangeReadyState(_)
             | LobbyClientMessage::GetPlayerList => true,
-            LobbyClientMessage::AddBot | LobbyClientMessage::StartGame => client == Some(host),
+            LobbyClientMessage::AddBot | LobbyClientMessage::StartGame => is_host,
         }
     }
 }
@@ -36,7 +35,7 @@ pub enum ActionMessage {
     FireBall,
 }
 
-impl Validate for ActionMessage {}
+impl Verify for ActionMessage {}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ClientMessage {
@@ -45,12 +44,12 @@ pub enum ClientMessage {
     Action(ActionMessage),
 }
 
-impl Validate for ClientMessage {
-    fn validate(&self, client: Option<&Uuid>, host: &Uuid) -> bool {
+impl Verify for ClientMessage {
+    fn verify(&self, is_host: bool) -> bool {
         match self {
-            ClientMessage::LobbyMessage(message) => message.validate(client, host),
+            ClientMessage::LobbyMessage(message) => message.verify(is_host),
             ClientMessage::Loaded => true,
-            ClientMessage::Action(message) => message.validate(client, host),
+            ClientMessage::Action(message) => message.verify(is_host),
         }
     }
 }

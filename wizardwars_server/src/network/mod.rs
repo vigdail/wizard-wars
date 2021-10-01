@@ -8,7 +8,7 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, Position, Uuid};
 use wizardwars_shared::messages::client_messages::{
-    ActionMessage, ClientMessage, LobbyClientMessage, Validate,
+    ActionMessage, ClientMessage, LobbyClientMessage, Verify,
 };
 use wizardwars_shared::messages::{network_channels_setup, server_messages::ServerMessage};
 use wizardwars_shared::network::{Dest, Pack};
@@ -122,7 +122,8 @@ fn read_network_channels_system(
         let client = Client(*handle);
         let client_id = client_map.get(&client);
         while let Some(message) = channels.recv::<ClientMessage>() {
-            if !message.validate(client_id, &host.0.unwrap_or_default()) {
+            let is_host = client_id.map(|id| host.is_host(id)).unwrap_or(false);
+            if !message.verify(is_host) {
                 error!("Only host can use: {:?}", message);
                 continue;
             }
