@@ -6,9 +6,14 @@ use crate::{
     states::ServerState,
 };
 use bevy::prelude::*;
+use bevy_rapier3d::{
+    physics::ColliderBundle,
+    prelude::{ColliderShape, ColliderType},
+};
 use wizardwars_shared::{
     components::{Client, Player, Uuid},
     messages::server_messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},
+    resources::ArenaDimensions,
 };
 
 pub struct LoadCompleteEvent {
@@ -52,13 +57,26 @@ fn notify_clients(
     )));
 }
 
-fn create_arena(mut cmd: Commands, players: Query<Entity, With<Player>>) {
+fn create_arena(
+    mut cmd: Commands,
+    arena_dimensions: Res<ArenaDimensions>,
+    players: Query<Entity, With<Player>>,
+) {
     let clients_count = players.iter().count() as u32;
 
     let spawn_points = SpawnPointsBuilder::new()
         .with_circle_points(clients_count, 1.0)
         .build();
     let arena = ArenaBuilder::new().with_spawn_points(spawn_points).build();
+
+    let height = 2.0;
+    let collider = ColliderBundle {
+        collider_type: ColliderType::Solid,
+        position: [0.0, -height, 0.0].into(),
+        shape: ColliderShape::cuboid(arena_dimensions.radius, height, arena_dimensions.radius),
+        ..Default::default()
+    };
+    cmd.spawn_bundle(collider);
 
     cmd.insert_resource(arena);
 }

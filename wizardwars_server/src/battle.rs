@@ -6,18 +6,22 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
-    physics::{RigidBodyBundle, RigidBodyPositionSync},
-    prelude::RigidBodyVelocity,
+    physics::{ColliderBundle, IntoEntity, RigidBodyBundle, RigidBodyPositionSync},
+    prelude::{
+        ActiveEvents, ColliderShape, ColliderType, IntersectionEvent, RigidBodyForces,
+        RigidBodyMassProps, RigidBodyMassPropsFlags, RigidBodyPosition, RigidBodyVelocity,
+    },
 };
 use rand::Rng;
 use std::collections::HashMap;
 use wizardwars_shared::{
     components::{
         damage::{Attack, FireBall},
-        Bot, Client, Dead, Health, LifeTime, Player, Position, Uuid, Waypoint, Winner,
+        Bot, Client, Dead, Health, LifeTime, Owner, Player, Position, Uuid, Waypoint, Winner,
     },
     events::SpawnEvent,
     network::Pack,
+    resources::CharacterDimensions,
 };
 use wizardwars_shared::{messages::server_messages::ServerMessage, systems::apply_damage_system};
 
@@ -51,6 +55,7 @@ impl Plugin for BattlePlugin {
                     .with_system(bot_waypoint_system.system())
                     .with_system(move_to_waypoint_system.system())
                     .with_system(track_lifetime_system.system())
+                    .with_system(collision_system.system())
                     .with_system(position_sync_system.system()),
             )
             .add_system_set(
@@ -74,6 +79,7 @@ impl Plugin for BattlePlugin {
 fn setup_players(
     mut cmd: Commands,
     arena: Res<Arena>,
+    character_dimensions: Res<CharacterDimensions>,
     mut battle_state: ResMut<State<BattleState>>,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<(Entity, &Uuid, Option<&Client>), With<Player>>,
@@ -82,13 +88,44 @@ fn setup_players(
         .overwrite_set(BattleState::Prepare)
         .expect("Unable to switch battle state");
     let spawn_points = arena.spawn_points();
+    let player_radius = character_dimensions.radius();
+    let player_halfheight = character_dimensions.half_height();
+    let y1 = player_radius;
+    let y2 = player_radius + player_halfheight;
+
     clients
         .iter()
         .zip(spawn_points.iter())
         .for_each(|((entity, id, client), point)| {
+            let collider = ColliderBundle {
+                collider_type: ColliderType::Solid,
+                shape: ColliderShape::capsule(
+                    [0.0, y1, 0.0].into(),
+                    [0.0, y2, 0.0].into(),
+                    player_radius,
+                ),
+                flags: (ActiveEvents::INTERSECTION_EVENTS).into(),
+                ..Default::default()
+            };
+
+            let rigidbody = RigidBodyBundle {
+                position: (*point).into(),
+                mass_properties: RigidBodyMassProps {
+                    flags: RigidBodyMassPropsFlags::ROTATION_LOCKED_X
+                        | RigidBodyMassPropsFlags::ROTATION_LOCKED_Y
+                        | RigidBodyMassPropsFlags::ROTATION_LOCKED_Z,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
             cmd.entity(entity)
                 .insert(Health::new(20))
-                .insert(Position(*point));
+                .insert(Position(*point))
+                .insert(Transform::default())
+                .insert_bundle(collider)
+                .insert_bundle(rigidbody)
+                .insert(RigidBodyPositionSync::Discrete);
 
             if let Some(client) = client {
                 packets.send(ServerPacket::except(
@@ -110,32 +147,51 @@ fn handle_attack_events_system(
     mut cmd: Commands,
     mut id_factory: ResMut<IdFactory>,
     mut events: EventReader<ActionEvent>,
-    query: Query<(&Position, &Client), (With<Health>, Without<Dead>)>,
+    query: Query<(Entity, &Position, &Client), (With<Health>, Without<Dead>)>,
     mut packets: EventWriter<ServerPacket>,
 ) {
-    let map = query.iter().map(|(p, c)| (c, p)).collect::<HashMap<_, _>>();
+    let map = query
+        .iter()
+        .map(|(e, p, c)| (c, (e, p)))
+        .collect::<HashMap<_, _>>();
     for event in events.iter() {
         if let ActionEvent::FireBall(client, target) = &event {
             let offset = 0.5;
-            let attacker = map.get(client).unwrap().0 + Vec3::Y * offset;
+            let (attacker_entity, attacker_position) = map.get(client).unwrap();
+            let origin = attacker_position.0 + Vec3::Y * offset;
             let target = Vec3::new(target.x, offset, target.z);
-            let dir = (attacker - target).normalize();
+            let dir = (origin - target).normalize();
+
             let id = id_factory.generate();
+            let collier = ColliderBundle {
+                collider_type: ColliderType::Sensor,
+                shape: ColliderShape::ball(0.1),
+                flags: (ActiveEvents::INTERSECTION_EVENTS).into(),
+                ..Default::default()
+            };
+            let rigidbody = RigidBodyBundle {
+                position: origin.into(),
+                velocity: RigidBodyVelocity {
+                    linvel: (-dir * 5.0).into(),
+                    ..Default::default()
+                },
+                forces: RigidBodyForces {
+                    gravity_scale: 0.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
             cmd.spawn()
-                .insert(Position(attacker))
+                .insert(Position(origin))
                 .insert(FireBall {
                     attack: Attack::new(10),
                 })
+                .insert(Owner::new(*attacker_entity))
                 .insert(LifeTime::from_seconds(5.0))
-                .insert(Transform::identity())
-                .insert_bundle(RigidBodyBundle {
-                    position: attacker.into(),
-                    velocity: RigidBodyVelocity {
-                        linvel: (-dir * 5.0).into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })
+                .insert(Transform::default())
+                .insert_bundle(collier)
+                .insert_bundle(rigidbody)
                 .insert(RigidBodyPositionSync::Discrete)
                 .insert(id);
 
@@ -151,10 +207,54 @@ fn position_sync_system(mut query: Query<(&Transform, &mut Position), Changed<Tr
     }
 }
 
+fn collision_system(
+    mut cmd: Commands,
+    mut packets: EventWriter<ServerPacket>,
+    mut intersection_events: EventReader<IntersectionEvent>,
+    fireballs: Query<(Entity, &FireBall, &Owner, &Uuid)>,
+    healths: Query<&Health>,
+    mut rigidbodies: Query<&mut RigidBodyForces>,
+) {
+    for event in intersection_events.iter() {
+        let e1 = event.collider1.entity();
+        let e2 = event.collider2.entity();
+
+        let (fireball_entity, fireball, owner, fireball_id) =
+            match (fireballs.get(e1), fireballs.get(e2)) {
+                (Ok(fireball), Err(_)) => fireball,
+                (Err(_), Ok(fireball)) => fireball,
+                (_, _) => continue,
+            };
+
+        let target_entity = if e1 == fireball_entity { e2 } else { e1 };
+        if owner.entity() == target_entity {
+            continue;
+        }
+
+        let rigidbody = rigidbodies.get_mut(target_entity).ok();
+        let health = healths.get(target_entity).ok();
+
+        if let Some(mut rigidbody) = rigidbody {
+            rigidbody.apply_force_at_point(
+                &Default::default(),
+                [0.0, 10.0, 0.0].into(),
+                [0.0, 0.0, 0.0].into(),
+            );
+        }
+
+        if health.is_some() {
+            cmd.entity(target_entity).insert(fireball.attack.damage());
+        }
+
+        cmd.entity(fireball_entity).despawn();
+        packets.send(Pack::all(ServerMessage::Despawn(*fireball_id)));
+    }
+}
+
 fn handle_move_events_system(
     mut events: EventReader<ActionEvent>,
     time: Res<Time>,
-    mut query: Query<(&Client, &mut Position)>,
+    mut query: Query<(&Client, &mut RigidBodyPosition)>,
 ) {
     let speed = 5.0;
     for event in events.iter() {
@@ -162,7 +262,10 @@ fn handle_move_events_system(
             if let ActionEvent::Move(handle, dir) = &event {
                 let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
                 if h == handle {
-                    position.0 += offset * time.delta_seconds();
+                    let translation = offset * time.delta_seconds();
+                    position.position.append_translation_mut(
+                        &[translation.x, translation.y, translation.z].into(),
+                    );
                 }
             }
         }
@@ -269,15 +372,18 @@ fn bot_waypoint_system(mut cmd: Commands, query: Query<Entity, (With<Bot>, Witho
 
 fn move_to_waypoint_system(
     mut cmd: Commands,
-    mut query: Query<(Entity, &mut Position, &Waypoint)>,
+    mut query: Query<(Entity, &mut RigidBodyPosition, &Waypoint)>,
     time: Res<Time>,
 ) {
     let speed = 1.0;
     for (entity, mut position, waypoint) in query.iter_mut() {
         let target = waypoint.0;
-        let dir = (target - position.0).normalize();
-        position.0 += dir * time.delta_seconds() * speed;
-        if (position.0 - target).length() < 0.01 {
+        let dir = (target - position.position.translation.into()).normalize();
+        let translation = dir * time.delta_seconds() * speed;
+        position
+            .position
+            .append_translation_mut(&[translation.x, translation.y, translation.z].into());
+        if (Vec3::from(position.position.translation) - target).length() < 0.01 {
             cmd.entity(entity).remove::<Waypoint>();
         }
     }

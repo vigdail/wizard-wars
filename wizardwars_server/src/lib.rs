@@ -21,7 +21,10 @@ use shopping::{ShoppingConfig, ShoppingTimerPlugin};
 use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
-use wizardwars_shared::components::{Client, Uuid};
+use wizardwars_shared::{
+    components::{Client, Uuid},
+    resources::{ArenaDimensions, CharacterDimensions},
+};
 
 enum ActionEvent {
     Move(Client, Vec2),
@@ -39,6 +42,8 @@ impl Plugin for ServerPlugin {
         .insert_resource(ShoppingConfig {
             time_in_seconds: 0.0,
         })
+        .insert_resource(CharacterDimensions::default())
+        .insert_resource(ArenaDimensions::default())
         .add_event::<ActionEvent>()
         .add_state(ServerState::Init)
         .add_system_set(

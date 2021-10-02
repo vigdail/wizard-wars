@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
 use bevy_mod_picking::{PickableBundle, PickingCameraBundle};
-use wizardwars_shared::{components::Uuid, events::SpawnEvent};
+use wizardwars_shared::{components::Uuid, events::SpawnEvent, resources::ArenaDimensions};
 
 pub struct InsertPlayerEvent {
     pub id: Uuid,
@@ -28,15 +28,19 @@ impl Plugin for ArenaPlugin {
 fn setup_world_system(
     mut cmd: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
+    arena_dimensions: Res<ArenaDimensions>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let map_material = StandardMaterial {
-        base_color: Color::rgb(0.15, 0.27, 0.33),
+        base_color: Color::rgb(0.25, 0.07, 0.03),
+        roughness: 0.9,
         ..Default::default()
     };
 
     cmd.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane { size: 10.0 })),
+        mesh: meshes.add(Mesh::from(shape::Plane {
+            size: arena_dimensions.radius * 2.0,
+        })),
         material: materials.add(map_material),
         ..Default::default()
     })
@@ -93,7 +97,7 @@ fn spawn_player_system(
                         max_z: width / 2.0,
                     })),
                     transform: Transform::from_xyz(position.x, position.y, position.z),
-                    material: materials.add(Color::rgb(0.91, 0.44, 0.32).into()),
+                    material: materials.add(Color::rgb(0.32, 0.44, 0.91).into()),
                     ..Default::default()
                 })
                 .insert(id);

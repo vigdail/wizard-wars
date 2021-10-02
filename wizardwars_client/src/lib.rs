@@ -11,6 +11,7 @@ use network::{read_component_channel_system, NetworkPlugin};
 use wizardwars_shared::{
     components::{Position, ReadyState},
     messages::client_messages::{ActionMessage, ClientMessage, LobbyClientMessage},
+    resources::{ArenaDimensions, CharacterDimensions},
 };
 
 mod arena;
@@ -27,6 +28,8 @@ impl Plugin for ClientPlugin {
             height: 600.0,
             ..Default::default()
         })
+        .insert_resource(CharacterDimensions::default())
+        .insert_resource(ArenaDimensions::default())
         .add_plugins(DefaultPlugins)
         .add_plugin(PickingPlugin)
         .add_plugin(InteractablePickingPlugin)
