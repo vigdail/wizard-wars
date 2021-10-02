@@ -56,36 +56,31 @@ fn update_translation_system(mut players: Query<(&Position, &mut Transform), Cha
 }
 
 fn input_system(
-    keyboard_input: Res<Input<KeyCode>>,
     mouse_input: Res<Input<MouseButton>>,
     mut net: ResMut<NetworkResource>,
     camera_query: Query<&PickingCamera>,
 ) {
-    let mut dir = Vec2::ZERO;
-    if keyboard_input.pressed(KeyCode::W) {
-        dir.y -= 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::S) {
-        dir.y += 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::A) {
-        dir.x -= 1.0;
-    }
-    if keyboard_input.pressed(KeyCode::D) {
-        dir.x += 1.0;
-    }
+    if mouse_input.just_pressed(MouseButton::Right) {
+        let target = camera_query
+            .single()
+            .ok()
+            .and_then(|camera| camera.intersect_top())
+            .map(|(_, intersect)| intersect.position());
 
-    if dir.length() > 0.0 {
-        let _ = net.broadcast_message(ClientMessage::Action(ActionMessage::Move(dir.normalize())));
+        if let Some(target) = target {
+            net.broadcast_message(ClientMessage::Action(ActionMessage::Move { target }));
+        }
     }
 
     if mouse_input.just_pressed(MouseButton::Left) {
-        if let Ok(camera) = camera_query.single() {
-            if let Some((_, intersect)) = camera.intersect_top() {
-                net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall(
-                    intersect.position(),
-                )));
-            }
+        let target = camera_query
+            .single()
+            .ok()
+            .and_then(|camera| camera.intersect_top())
+            .map(|(_, intersect)| intersect.position());
+
+        if let Some(target) = target {
+            net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall(target)));
         }
     }
 }

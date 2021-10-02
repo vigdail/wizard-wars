@@ -20,10 +20,11 @@ use wizardwars_shared::{
         Bot, Client, Dead, Health, LifeTime, Owner, Player, Position, Uuid, Waypoint, Winner,
     },
     events::SpawnEvent,
+    messages::server_messages::ServerMessage,
     network::Pack,
     resources::CharacterDimensions,
+    systems::apply_damage_system,
 };
-use wizardwars_shared::{messages::server_messages::ServerMessage, systems::apply_damage_system};
 
 pub struct BattlePlugin;
 
@@ -195,6 +196,8 @@ fn handle_attack_events_system(
                 .insert(RigidBodyPositionSync::Discrete)
                 .insert(id);
 
+            cmd.entity(*attacker_entity).remove::<Waypoint>();
+
             packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }
     }
@@ -252,21 +255,19 @@ fn collision_system(
 }
 
 fn handle_move_events_system(
+    mut cmd: Commands,
     mut events: EventReader<ActionEvent>,
-    time: Res<Time>,
-    mut query: Query<(&Client, &mut RigidBodyPosition)>,
+    query: Query<(Entity, &Client)>,
 ) {
-    let speed = 5.0;
+    let clients = query
+        .iter()
+        .map(|(entity, client)| (client, entity))
+        .collect::<HashMap<_, _>>();
+
     for event in events.iter() {
-        for (h, mut position) in query.iter_mut() {
-            if let ActionEvent::Move(handle, dir) = &event {
-                let offset = Vec3::new(dir.x, 0.0, dir.y) * speed;
-                if h == handle {
-                    let translation = offset * time.delta_seconds();
-                    position.position.append_translation_mut(
-                        &[translation.x, translation.y, translation.z].into(),
-                    );
-                }
+        if let ActionEvent::Move(handle, target) = &event {
+            if let Some(&entity) = clients.get(handle) {
+                cmd.entity(entity).insert(Waypoint(*target));
             }
         }
     }

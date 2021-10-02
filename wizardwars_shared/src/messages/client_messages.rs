@@ -30,7 +30,7 @@ impl Verify for LobbyClientMessage {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum ActionMessage {
-    Move(Vec2),
+    Move { target: Vec3 },
     Attack { target: Uuid },
     FireBall(Vec3),
 }

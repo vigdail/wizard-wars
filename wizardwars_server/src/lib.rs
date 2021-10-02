@@ -27,7 +27,7 @@ use wizardwars_shared::{
 };
 
 enum ActionEvent {
-    Move(Client, Vec2),
+    Move(Client, Vec3),
     Attack(Client, Uuid),
     FireBall(Client, Vec3),
 }

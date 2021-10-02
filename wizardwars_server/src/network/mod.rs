@@ -144,8 +144,8 @@ fn read_network_channels_system(
                     }
                 },
                 ClientMessage::Action(e) => match e {
-                    ActionMessage::Move(dir) => {
-                        action_events.send(ActionEvent::Move(client, dir));
+                    ActionMessage::Move { target } => {
+                        action_events.send(ActionEvent::Move(client, target));
                     }
                     ActionMessage::Attack { target } => {
                         action_events.send(ActionEvent::Attack(client, target));
