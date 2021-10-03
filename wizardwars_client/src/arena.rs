@@ -54,8 +54,8 @@ fn setup_world_system(
     .insert_bundle(PickingCameraBundle::default())
     .insert(FollowCamera {
         target: Vec3::ZERO,
-        vertical_offset: 1.0,
-        distance: 5.0,
+        vertical_offset: 0.0,
+        distance: 15.0,
     });
     cmd.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(1.0, 5.0, 1.0)),

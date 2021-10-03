@@ -21,7 +21,7 @@ impl Plugin for CameraPlugin {
 }
 
 pub fn camera_follow_system(mut query: Query<(&mut Transform, &FollowCamera)>) {
-    let dir = Vec3::new(0.0, 1.0, 1.0).normalize();
+    let dir = Vec3::new(0.0, 1.5, 1.0).normalize();
     for (mut transform, camera) in query.iter_mut() {
         let offset = camera.distance * dir;
         let position = offset + camera.target;

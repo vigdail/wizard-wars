@@ -376,7 +376,7 @@ fn move_to_waypoint_system(
     mut query: Query<(Entity, &mut RigidBodyPosition, &Waypoint)>,
     time: Res<Time>,
 ) {
-    let speed = 1.0;
+    let speed = 2.0;
     for (entity, mut position, waypoint) in query.iter_mut() {
         let target = waypoint.0;
         let dir = (target - position.position.translation.into()).normalize();
@@ -384,7 +384,7 @@ fn move_to_waypoint_system(
         position
             .position
             .append_translation_mut(&[translation.x, translation.y, translation.z].into());
-        if (Vec3::from(position.position.translation) - target).length() < 0.01 {
+        if (Vec3::from(position.position.translation) - target).length() < 0.02 {
             cmd.entity(entity).remove::<Waypoint>();
         }
     }
