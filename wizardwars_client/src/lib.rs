@@ -1,5 +1,6 @@
 use arena::ArenaPlugin;
 use bevy::prelude::*;
+use bevy_inspector_egui::WorldInspectorPlugin;
 use bevy_mod_picking::{
     DebugCursorPickingPlugin, DebugEventsPickingPlugin, InteractablePickingPlugin, PickingCamera,
     PickingPlugin,
@@ -39,6 +40,7 @@ impl Plugin for ClientPlugin {
         .add_plugin(NetworkPlugin)
         .add_plugin(ArenaPlugin)
         .add_plugin(LobbyPlugin)
+        .add_plugin(WorldInspectorPlugin::new())
         .add_system_to_stage(CoreStage::PreUpdate, input_system.system())
         .add_system_to_stage(CoreStage::PreUpdate, network_mock_input_system.system())
         .add_system(update_translation_system.system())

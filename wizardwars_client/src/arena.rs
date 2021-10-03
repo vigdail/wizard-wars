@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
 use bevy_mod_picking::{PickableBundle, PickingCameraBundle};
-use wizardwars_shared::{components::Uuid, events::SpawnEvent, resources::ArenaDimensions};
+use wizardwars_shared::{components::Uuid, events::SpawnEvent, resources::CharacterDimensions};
 
 pub struct InsertPlayerEvent {
     pub id: Uuid,
@@ -20,31 +20,26 @@ impl Plugin for ArenaPlugin {
         app.add_event::<InsertPlayerEvent>()
             .add_event::<SpawnEvent>()
             .add_startup_system(setup_world_system.system())
+            .add_system(apply_pickable.system())
             .add_system(spawn_player_system.system())
             .add_system(handle_spawn_events.system());
     }
 }
 
-fn setup_world_system(
-    mut cmd: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    arena_dimensions: Res<ArenaDimensions>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
-) {
-    let map_material = StandardMaterial {
-        base_color: Color::rgb(0.25, 0.07, 0.03),
-        roughness: 0.9,
-        ..Default::default()
-    };
+// TODO: Find out a proper way to do this
+fn apply_pickable(mut cmd: Commands, query: Query<(Entity, &Children, &Name), Changed<Name>>) {
+    for (entity, children, name) in query.iter() {
+        if name.as_str() == "arena" {
+            cmd.entity(entity).insert_bundle(PickableBundle::default());
+            for child in children.iter() {
+                cmd.entity(*child).insert_bundle(PickableBundle::default());
+            }
+        }
+    }
+}
 
-    cmd.spawn_bundle(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Plane {
-            size: arena_dimensions.radius * 2.0,
-        })),
-        material: materials.add(map_material),
-        ..Default::default()
-    })
-    .insert_bundle(PickableBundle::default());
+fn setup_world_system(mut cmd: Commands, asset_server: Res<AssetServer>) {
+    cmd.spawn_scene(asset_server.load("Arena1.gltf#Scene0"));
 
     cmd.spawn_bundle(PerspectiveCameraBundle {
         transform: Transform::from_translation(Vec3::new(0.0, 5.0, 5.0))
@@ -55,7 +50,7 @@ fn setup_world_system(
     .insert(FollowCamera {
         target: Vec3::ZERO,
         vertical_offset: 0.0,
-        distance: 15.0,
+        distance: 20.0,
     });
     cmd.spawn_bundle(LightBundle {
         transform: Transform::from_translation(Vec3::new(1.0, 5.0, 1.0)),
@@ -68,10 +63,11 @@ fn spawn_player_system(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut events: EventReader<InsertPlayerEvent>,
+    character_dimensions: Res<CharacterDimensions>,
     query: Query<(Entity, &Uuid)>,
 ) {
-    let height = 1.0;
-    let width = 0.5;
+    let height = character_dimensions.height();
+    let width = character_dimensions.width();
 
     let clients = query
         .iter()

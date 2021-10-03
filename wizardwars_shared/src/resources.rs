@@ -25,7 +25,7 @@ impl Default for CharacterDimensions {
     fn default() -> Self {
         Self {
             width: 0.5,
-            height: 1.0,
+            height: 1.8,
         }
     }
 }
@@ -36,6 +36,6 @@ pub struct ArenaDimensions {
 
 impl Default for ArenaDimensions {
     fn default() -> Self {
-        Self { radius: 10.0 }
+        Self { radius: 50.0 }
     }
 }
