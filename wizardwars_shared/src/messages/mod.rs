@@ -57,8 +57,8 @@ fn player_component_message_settings(channel: u8) -> MessageChannelSettings {
     MessageChannelSettings {
         channel,
         channel_mode: MessageChannelMode::Unreliable,
-        message_buffer_size: 8,
-        packet_buffer_size: 8,
+        message_buffer_size: 128,
+        packet_buffer_size: 128,
     }
 }
 
