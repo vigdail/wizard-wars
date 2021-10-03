@@ -15,15 +15,23 @@ impl Damage {
 
 pub struct Attack {
     damage: u32,
+    knockback_force: f32,
 }
 
 impl Attack {
-    pub fn new(damage: u32) -> Self {
-        Attack { damage }
+    pub fn new(damage: u32, knockback_force: f32) -> Self {
+        Attack {
+            damage,
+            knockback_force,
+        }
     }
 
     pub fn damage(&self) -> Damage {
         Damage::new(self.damage)
+    }
+
+    pub fn knockback_force(&self) -> f32 {
+        self.knockback_force
     }
 }
 
