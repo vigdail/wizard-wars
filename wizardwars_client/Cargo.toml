@@ -11,3 +11,4 @@ serde = {version = "1.0.130", features = ["derive"]}
 turbulence = "0.3.0"
 wizardwars_shared = {path = "../wizardwars_shared"}
 bevy_mod_picking = "0.4.0"
+bevy-inspector-egui = "0.6.1"
