@@ -1,15 +1,14 @@
 use crate::loading::LoadCompleteEvent;
-use crate::lobby::{LobbyEvent, LobbyEventEntry};
+use crate::lobby::LobbyEvent;
 use crate::states::ServerState;
-use crate::ActionEvent;
+// use crate::ActionEvent;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, Position, Uuid};
-use wizardwars_shared::messages::client_messages::{
-    ActionMessage, ClientMessage, LobbyClientMessage, Verify,
-};
+use wizardwars_shared::events::ClientEvent;
+use wizardwars_shared::messages::client_messages::{ActionMessage, ClientMessage, Verify};
 use wizardwars_shared::messages::{network_channels_setup, server_messages::ServerMessage};
 use wizardwars_shared::network::{Dest, Pack};
 
@@ -105,7 +104,7 @@ fn handle_network_events_system(
 
 fn read_network_channels_system(
     mut net: ResMut<NetworkResource>,
-    mut action_events: EventWriter<ActionEvent>,
+    mut action_events: EventWriter<ClientEvent<ActionMessage>>,
     mut lobby_events: EventWriter<LobbyEvent>,
     mut loading_events: EventWriter<LoadCompleteEvent>,
     host: Res<Host>,
@@ -129,31 +128,10 @@ fn read_network_channels_system(
             }
 
             match message {
-                ClientMessage::LobbyMessage(msg) => match msg {
-                    LobbyClientMessage::Join(name) => lobby_events
-                        .send(LobbyEvent::new(client, LobbyEventEntry::ClientJoined(name))),
-                    LobbyClientMessage::ChangeReadyState(ready) => lobby_events.send(
-                        LobbyEvent::new(client, LobbyEventEntry::ReadyChanged(ready)),
-                    ),
-                    LobbyClientMessage::GetPlayerList => todo!(),
-                    LobbyClientMessage::StartGame => {
-                        lobby_events.send(LobbyEvent::new(client, LobbyEventEntry::StartGame));
-                    }
-                    LobbyClientMessage::AddBot => {
-                        lobby_events.send(LobbyEvent::new(client, LobbyEventEntry::CreateBot))
-                    }
-                },
-                ClientMessage::Action(e) => match e {
-                    ActionMessage::Move { target } => {
-                        action_events.send(ActionEvent::Move(client, target));
-                    }
-                    ActionMessage::Attack { target } => {
-                        action_events.send(ActionEvent::Attack(client, target));
-                    }
-                    ActionMessage::FireBall(target) => {
-                        action_events.send(ActionEvent::FireBall(client, target));
-                    }
-                },
+                ClientMessage::LobbyMessage(msg) => {
+                    lobby_events.send(ClientEvent::new(client, msg))
+                }
+                ClientMessage::Action(msg) => action_events.send(ClientEvent::new(client, msg)),
                 ClientMessage::Loaded => {
                     loading_events.send(LoadCompleteEvent { client });
                 }

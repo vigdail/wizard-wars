@@ -6,18 +6,21 @@ use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
     components::{Bot, Client, Player, ReadyState, Uuid},
     events::ClientEvent,
-    messages::server_messages::{LobbyServerMessage, ServerMessage},
+    messages::{
+        client_messages::LobbyClientMessage,
+        server_messages::{LobbyServerMessage, ServerMessage},
+    },
     network::Pack,
 };
 
-pub type LobbyEvent = ClientEvent<LobbyEventEntry>;
+pub type LobbyEvent = ClientEvent<LobbyClientMessage>;
 
-pub enum LobbyEventEntry {
-    ClientJoined(String),
-    ReadyChanged(ReadyState),
-    CreateBot,
-    StartGame,
-}
+// pub enum LobbyEventEntry {
+//     ClientJoined(String),
+//     ReadyChanged(ReadyState),
+//     CreateBot,
+//     StartGame,
+// }
 
 #[derive(PartialEq)]
 pub struct LobbyReadyState(ReadyState);
@@ -62,7 +65,7 @@ fn handle_client_joined(
 ) {
     for event in lobby_evets.iter() {
         let client = *event.client();
-        if let LobbyEventEntry::ClientJoined(name) = event.event() {
+        if let LobbyClientMessage::Join(name) = event.event() {
             let network_id = id_factory.generate();
 
             if host.0.is_none() {
@@ -112,7 +115,7 @@ fn handle_create_bot(
     mut packets: EventWriter<ServerPacket>,
 ) {
     for event in lobby_evets.iter() {
-        if let LobbyEventEntry::CreateBot = event.event() {
+        if let LobbyClientMessage::AddBot = event.event() {
             let network_id = id_factory.generate();
 
             if host.0.is_none() {
@@ -146,7 +149,7 @@ fn handle_client_ready_events(
         .collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
         let client = event.client();
-        if let LobbyEventEntry::ReadyChanged(ready) = event.event() {
+        if let LobbyClientMessage::ChangeReadyState(ready) = event.event() {
             if let Some(&entity) = clients_map.get(client) {
                 cmd.entity(entity).insert(*ready);
             }
@@ -189,7 +192,7 @@ fn handle_start_game_event(
     lobby_ready_state: Res<LobbyReadyState>,
 ) {
     for event in lobby_evets.iter() {
-        if let LobbyEventEntry::StartGame = event.event() {
+        if let LobbyClientMessage::StartGame = event.event() {
             if *lobby_ready_state == LobbyReadyState(ReadyState::Ready) {
                 app_state
                     .set(ServerState::WaitLoading)

@@ -22,15 +22,10 @@ use states::ServerState;
 use std::time::Duration;
 use util::PrintStateNamesPlugin;
 use wizardwars_shared::{
-    components::{Client, Uuid},
+    events::ClientEvent,
+    messages::client_messages::ActionMessage,
     resources::{ArenaDimensions, CharacterDimensions},
 };
-
-enum ActionEvent {
-    Move(Client, Vec3),
-    Attack(Client, Uuid),
-    FireBall(Client, Vec3),
-}
 
 pub struct ServerPlugin;
 
@@ -44,7 +39,7 @@ impl Plugin for ServerPlugin {
         })
         .insert_resource(CharacterDimensions::default())
         .insert_resource(ArenaDimensions::default())
-        .add_event::<ActionEvent>()
+        .add_event::<ClientEvent<ActionMessage>>()
         .add_state(ServerState::Init)
         .add_system_set(
             SystemSet::on_update(ServerState::Init).with_system(check_init_system.system()),

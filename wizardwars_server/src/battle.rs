@@ -2,7 +2,7 @@ use crate::{
     arena::Arena,
     network::{IdFactory, ServerPacket},
     states::ServerState,
-    ActionEvent,
+    // ActionEvent,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
@@ -19,8 +19,8 @@ use wizardwars_shared::{
         damage::{Attack, FireBall},
         Bot, Client, Dead, Health, LifeTime, Owner, Player, Position, Uuid, Waypoint, Winner,
     },
-    events::SpawnEvent,
-    messages::server_messages::ServerMessage,
+    events::{ClientEvent, SpawnEvent},
+    messages::{client_messages::ActionMessage, server_messages::ServerMessage},
     network::Pack,
     resources::CharacterDimensions,
     systems::apply_damage_system,
@@ -147,7 +147,7 @@ fn setup_players(
 fn handle_attack_events_system(
     mut cmd: Commands,
     mut id_factory: ResMut<IdFactory>,
-    mut events: EventReader<ActionEvent>,
+    mut events: EventReader<ClientEvent<ActionMessage>>,
     query: Query<(Entity, &Position, &Client), (With<Health>, Without<Dead>)>,
     mut packets: EventWriter<ServerPacket>,
 ) {
@@ -156,9 +156,9 @@ fn handle_attack_events_system(
         .map(|(e, p, c)| (c, (e, p)))
         .collect::<HashMap<_, _>>();
     for event in events.iter() {
-        if let ActionEvent::FireBall(client, target) = &event {
+        if let ActionMessage::FireBall(target) = &event.event() {
             let offset = 0.5;
-            let (attacker_entity, attacker_position) = map.get(client).unwrap();
+            let (attacker_entity, attacker_position) = map.get(event.client()).unwrap();
             let origin = attacker_position.0 + Vec3::Y * offset;
             let target = Vec3::new(target.x, offset, target.z);
             let dir = (origin - target).normalize();
@@ -277,7 +277,7 @@ fn collision_system(
 
 fn handle_move_events_system(
     mut cmd: Commands,
-    mut events: EventReader<ActionEvent>,
+    mut events: EventReader<ClientEvent<ActionMessage>>,
     query: Query<(Entity, &Client)>,
 ) {
     let clients = query
@@ -286,8 +286,8 @@ fn handle_move_events_system(
         .collect::<HashMap<_, _>>();
 
     for event in events.iter() {
-        if let ActionEvent::Move(handle, target) = &event {
-            if let Some(&entity) = clients.get(handle) {
+        if let ActionMessage::Move { target } = &event.event() {
+            if let Some(&entity) = clients.get(event.client()) {
                 cmd.entity(entity).insert(Waypoint(*target));
             }
         }
