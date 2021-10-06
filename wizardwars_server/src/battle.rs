@@ -5,9 +5,9 @@ use crate::{
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
-    physics::{ColliderBundle, IntoEntity, RigidBodyBundle, RigidBodyPositionSync},
+    physics::{ColliderBundle, IntoEntity, IntoHandle, RigidBodyBundle, RigidBodyPositionSync},
     prelude::{
-        ActiveEvents, ColliderShape, ColliderType, IntersectionEvent, RigidBodyForces,
+        ActiveEvents, ColliderShape, ColliderType, NarrowPhase, RigidBodyForces,
         RigidBodyMassProps, RigidBodyMassPropsFlags, RigidBodyPosition, RigidBodyVelocity,
     },
 };
@@ -55,7 +55,7 @@ impl Plugin for BattlePlugin {
                     .with_system(bot_waypoint_system.system())
                     .with_system(move_to_waypoint_system.system())
                     .with_system(track_lifetime_system.system())
-                    .with_system(collision_system.system())
+                    .with_system(fireball_collision_system.system())
                     .with_system(position_sync_system.system()),
             )
             .add_system_set(
@@ -209,68 +209,72 @@ fn position_sync_system(mut query: Query<(&Transform, &mut Position), Changed<Tr
     }
 }
 
-fn collision_system(
+fn fireball_collision_system(
     mut cmd: Commands,
     mut packets: EventWriter<ServerPacket>,
-    mut intersection_events: EventReader<IntersectionEvent>,
     fireballs: Query<(Entity, &FireBall, &Owner, &Uuid)>,
     healths: Query<&Health>,
     mut rigidbodies: Query<&mut RigidBodyForces>,
     rigidbody_props: Query<(&RigidBodyPosition, &RigidBodyVelocity)>,
+    narrow_phase: Res<NarrowPhase>,
 ) {
-    for event in intersection_events.iter() {
-        let e1 = event.collider1.entity();
-        let e2 = event.collider2.entity();
+    for (fireball_entity, fireball, fireball_owner, fireball_id) in fireballs.iter() {
+        for (collider1, collider2, _) in narrow_phase.intersections_with(fireball_entity.handle()) {
+            let target_entity = {
+                let e1 = collider1.entity();
+                let e2 = collider2.entity();
 
-        let (fireball_entity, fireball, owner, fireball_id) =
-            match (fireballs.get(e1), fireballs.get(e2)) {
-                (Ok(fireball), Err(_)) => fireball,
-                (Err(_), Ok(fireball)) => fireball,
-                (_, _) => continue,
+                if e1 == fireball_entity {
+                    e2
+                } else {
+                    e1
+                }
             };
 
-        let target_entity = if e1 == fireball_entity { e2 } else { e1 };
-        if owner.entity() == target_entity {
-            continue;
+            if fireball_owner.entity() == target_entity {
+                continue;
+            }
+
+            let rigidbody = rigidbodies.get_mut(target_entity).ok();
+
+            if let Some(mut rigidbody_force) = rigidbody {
+                let (fireball_position, fireball_velocity) =
+                    rigidbody_props.get(fireball_entity).unwrap();
+                let (target_position, target_velocity) =
+                    rigidbody_props.get(target_entity).unwrap();
+
+                let mut diff_position: Vec3 = (fireball_position.position.translation.vector
+                    - target_position.position.translation.vector)
+                    .into();
+                diff_position.y = 0.0;
+
+                let mut diff_velocity: Vec3 =
+                    (fireball_velocity.linvel - target_velocity.linvel).into();
+                diff_velocity.y = 0.0;
+
+                let dot = diff_position
+                    .normalize()
+                    .dot(diff_velocity.normalize_or_zero());
+
+                let normal = diff_position.normalize() * dot * fireball.attack.knockback_force();
+                let force = [normal.x, 0.0, normal.z].into();
+
+                rigidbody_force.apply_force_at_point(
+                    &Default::default(),
+                    force,
+                    [0.0, 0.0, 0.0].into(),
+                );
+            }
+
+            let health = healths.get(target_entity).ok();
+
+            if health.is_some() {
+                cmd.entity(target_entity).insert(fireball.attack.damage());
+            }
+
+            cmd.entity(fireball_entity).despawn();
+            packets.send(Pack::all(ServerMessage::Despawn(*fireball_id)));
         }
-
-        let rigidbody = rigidbodies.get_mut(target_entity).ok();
-        let health = healths.get(target_entity).ok();
-
-        if let Some(mut rigidbody_force) = rigidbody {
-            let (fireball_position, fireball_velocity) =
-                rigidbody_props.get(fireball_entity).unwrap();
-            let (target_position, target_velocity) = rigidbody_props.get(target_entity).unwrap();
-
-            let mut diff_position: Vec3 = (fireball_position.position.translation.vector
-                - target_position.position.translation.vector)
-                .into();
-            diff_position.y = 0.0;
-
-            let mut diff_velocity: Vec3 =
-                (fireball_velocity.linvel - target_velocity.linvel).into();
-            diff_velocity.y = 0.0;
-
-            let dot = diff_position
-                .normalize()
-                .dot(diff_velocity.normalize_or_zero());
-
-            let normal = diff_position.normalize() * dot * fireball.attack.knockback_force();
-            let force = [normal.x, 0.0, normal.z].into();
-
-            rigidbody_force.apply_force_at_point(
-                &Default::default(),
-                force,
-                [0.0, 0.0, 0.0].into(),
-            );
-        }
-
-        if health.is_some() {
-            cmd.entity(target_entity).insert(fireball.attack.damage());
-        }
-
-        cmd.entity(fireball_entity).despawn();
-        packets.send(Pack::all(ServerMessage::Despawn(*fireball_id)));
     }
 }
 
