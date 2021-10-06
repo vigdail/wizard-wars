@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-
 pub struct CameraTarget;
 pub struct FollowCamera {
     pub target: Vec3,

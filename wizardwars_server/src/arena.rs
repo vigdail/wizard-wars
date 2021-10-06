@@ -1,7 +1,6 @@
 #![allow(dead_code)]
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
+use std::f32::consts::PI;
 
 pub struct Arena {
     spawn_points: Vec<Vec3>,

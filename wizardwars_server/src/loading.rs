@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::{
     arena::{ArenaBuilder, SpawnPointsBuilder},
     network::ServerPacket,
@@ -10,6 +8,7 @@ use bevy_rapier3d::{
     physics::ColliderBundle,
     prelude::{ColliderShape, ColliderType},
 };
+use std::collections::HashMap;
 use wizardwars_shared::{
     components::{Client, Player, Uuid},
     messages::server_messages::{LoadingServerMessage, LobbyServerMessage, ServerMessage},

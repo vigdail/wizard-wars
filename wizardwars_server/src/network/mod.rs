@@ -1,7 +1,6 @@
 use crate::loading::LoadCompleteEvent;
 use crate::lobby::LobbyEvent;
 use crate::states::ServerState;
-// use crate::ActionEvent;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
@@ -28,7 +27,6 @@ impl IdFactory {
 pub struct Host(pub Option<Uuid>);
 
 impl Host {
-    #[allow(dead_code)]
     pub fn is_host(&self, id: &Uuid) -> bool {
         Some(*id) == self.0
     }

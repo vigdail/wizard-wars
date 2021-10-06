@@ -15,13 +15,6 @@ use wizardwars_shared::{
 
 pub type LobbyEvent = ClientEvent<LobbyClientMessage>;
 
-// pub enum LobbyEventEntry {
-//     ClientJoined(String),
-//     ReadyChanged(ReadyState),
-//     CreateBot,
-//     StartGame,
-// }
-
 #[derive(PartialEq)]
 pub struct LobbyReadyState(ReadyState);
 

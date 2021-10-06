@@ -2,7 +2,6 @@ use crate::{
     arena::Arena,
     network::{IdFactory, ServerPacket},
     states::ServerState,
-    // ActionEvent,
 };
 use bevy::prelude::*;
 use bevy_rapier3d::{
