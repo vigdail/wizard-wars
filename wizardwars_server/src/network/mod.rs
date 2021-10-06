@@ -8,6 +8,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use wizardwars_shared::components::{Client, Position, Uuid};
 use wizardwars_shared::events::ClientEvent;
 use wizardwars_shared::messages::client_messages::{ActionMessage, ClientMessage, Verify};
+use wizardwars_shared::messages::server_messages::LobbyServerMessage;
 use wizardwars_shared::messages::{network_channels_setup, server_messages::ServerMessage};
 use wizardwars_shared::network::{Dest, Pack};
 
@@ -27,6 +28,10 @@ impl IdFactory {
 pub struct Host(pub Option<Uuid>);
 
 impl Host {
+    pub fn set_host(&mut self, id: Option<Uuid>) {
+        self.0 = id;
+    }
+
     pub fn is_host(&self, id: &Uuid) -> bool {
         Some(*id) == self.0
     }
@@ -69,6 +74,7 @@ fn handle_network_events_system(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut network_event_reader: EventReader<NetworkEvent>,
+    mut host: ResMut<Host>,
     clients: Query<(Entity, &Client, &Uuid)>,
 ) {
     let clients_map = clients
@@ -97,6 +103,21 @@ fn handle_network_events_system(
     }
     for id in disconnected.into_iter() {
         net.broadcast_message(ServerMessage::Despawn(id));
+
+        if host.is_host(&id) {
+            let new_host_id = clients_map.iter().find_map(|(_, (_, &client_id))| {
+                if client_id != id {
+                    Some(client_id)
+                } else {
+                    None
+                }
+            });
+            host.set_host(new_host_id);
+
+            if let Some(host_id) = new_host_id {
+                net.broadcast_message(ServerMessage::Lobby(LobbyServerMessage::SetHost(host_id)));
+            }
+        }
     }
 }
 
