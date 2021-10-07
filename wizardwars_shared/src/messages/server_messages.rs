@@ -9,6 +9,7 @@ use std::time::Duration;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
     Welcome(Uuid),
+    Reject(String),
     PlayerJoined(Uuid, String),
     PlayersList(Vec<String>),
     ReadyState(ReadyState),
@@ -39,7 +40,6 @@ pub enum ServerMessage {
     Loading(LoadingServerMessage),
     Shopping(ShoppingServerMessage),
     InsertPlayer(InsertPlayerEvent),
-    // InsertLocalPlayer(Uuid, Vec3),
     Spawn(SpawnEvent),
     Despawn(Uuid),
 }

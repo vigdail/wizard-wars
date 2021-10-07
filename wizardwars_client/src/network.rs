@@ -102,7 +102,8 @@ fn read_server_message_channel_system(
     mut lobby_events: EventWriter<LobbyEvent>,
     mut spawn_events: EventWriter<SpawnEvent>,
 ) {
-    for (_, connection) in net.connections.iter_mut() {
+    let mut disconnect = Vec::new();
+    for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         while let Some(message) = channels.recv::<ServerMessage>() {
@@ -111,6 +112,10 @@ fn read_server_message_channel_system(
                 ServerMessage::Lobby(msg) => match msg {
                     LobbyServerMessage::Welcome(id) => {
                         cmd.spawn().insert(id);
+                    }
+                    LobbyServerMessage::Reject(reason) => {
+                        error!("Cannot enter lobby: {}", reason);
+                        disconnect.push(*handle);
                     }
                     LobbyServerMessage::SetHost(_) => {}
                     LobbyServerMessage::PlayerJoined(id, _) => {
@@ -124,13 +129,6 @@ fn read_server_message_channel_system(
                 },
                 ServerMessage::Loading(_) => {}
                 ServerMessage::Shopping(_) => {}
-                // ServerMessage::InsertLocalPlayer(id, position) => {
-                //     insert_player_events.send(InsertPlayerEvent {
-                //         id,
-                //         position,
-                //         is_local: true,
-                //     });
-                // }
                 ServerMessage::InsertPlayer(event) => {
                     insert_player_events.send(event);
                 }
@@ -142,6 +140,10 @@ fn read_server_message_channel_system(
                 }
             }
         }
+    }
+
+    for handle in disconnect {
+        net.disconnect(handle);
     }
 }
 

@@ -11,6 +11,7 @@ use wizardwars_shared::{
         server_messages::{LobbyServerMessage, ServerMessage},
     },
     network::Pack,
+    resources::MAX_PLAYERS,
 };
 
 pub type LobbyEvent = ClientEvent<LobbyClientMessage>;
@@ -55,10 +56,22 @@ fn handle_client_joined(
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<(&Uuid, &Name), With<Client>>,
+    players: Query<&Player>,
 ) {
+    let mut players_count = players.iter().count();
     for event in lobby_evets.iter() {
         let client = *event.client();
         if let LobbyClientMessage::Join(name) = event.event() {
+            if players_count >= MAX_PLAYERS {
+                warn!("Max players reached");
+                packets.send(Pack::single(
+                    LobbyServerMessage::Reject("Lobby is full".to_owned()),
+                    client,
+                ));
+                continue;
+            }
+            players_count += 1;
+
             let network_id = id_factory.generate();
 
             if host.0.is_none() {
