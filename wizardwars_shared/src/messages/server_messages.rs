@@ -1,9 +1,8 @@
 use crate::{
     components::{ReadyState, Uuid},
     enum_from,
-    events::SpawnEvent,
+    events::{InsertPlayerEvent, SpawnEvent},
 };
-use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -39,8 +38,8 @@ pub enum ServerMessage {
     Lobby(LobbyServerMessage),
     Loading(LoadingServerMessage),
     Shopping(ShoppingServerMessage),
-    InsertPlayer(Uuid, Vec3),
-    InsertLocalPlayer(Uuid, Vec3),
+    InsertPlayer(InsertPlayerEvent),
+    // InsertLocalPlayer(Uuid, Vec3),
     Spawn(SpawnEvent),
     Despawn(Uuid),
 }

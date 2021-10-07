@@ -24,7 +24,7 @@ use util::PrintStateNamesPlugin;
 use wizardwars_shared::{
     events::ClientEvent,
     messages::client_messages::ActionMessage,
-    resources::{ArenaDimensions, CharacterDimensions},
+    resources::{ArenaDimensions, CharacterDimensions, PlayerColors},
 };
 
 pub struct ServerPlugin;
@@ -39,6 +39,7 @@ impl Plugin for ServerPlugin {
         })
         .insert_resource(CharacterDimensions::default())
         .insert_resource(ArenaDimensions::default())
+        .insert_resource(PlayerColors::default())
         .add_event::<ClientEvent<ActionMessage>>()
         .add_state(ServerState::Init)
         .add_system_set(

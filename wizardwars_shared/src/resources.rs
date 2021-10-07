@@ -1,3 +1,5 @@
+use bevy::prelude::*;
+
 pub struct CharacterDimensions {
     width: f32,
     height: f32,
@@ -37,5 +39,27 @@ pub struct ArenaDimensions {
 impl Default for ArenaDimensions {
     fn default() -> Self {
         Self { radius: 50.0 }
+    }
+}
+
+pub const MAX_PLAYERS: usize = 8;
+
+pub struct PlayerColors {
+    pub colors: [Color; MAX_PLAYERS],
+}
+
+impl Default for PlayerColors {
+    fn default() -> Self {
+        let colors = [
+            Color::RED,
+            Color::BLUE,
+            Color::GREEN,
+            Color::PURPLE,
+            Color::CYAN,
+            Color::ORANGE,
+            Color::OLIVE,
+            Color::WHITE,
+        ];
+        Self { colors }
     }
 }

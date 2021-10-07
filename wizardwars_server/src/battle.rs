@@ -18,10 +18,10 @@ use wizardwars_shared::{
         damage::{Attack, FireBall},
         Bot, Client, Dead, Health, LifeTime, Owner, Player, Position, Uuid, Waypoint, Winner,
     },
-    events::{ClientEvent, SpawnEvent},
+    events::{ClientEvent, InsertPlayerEvent, SpawnEvent},
     messages::{client_messages::ActionMessage, server_messages::ServerMessage},
     network::Pack,
-    resources::CharacterDimensions,
+    resources::{CharacterDimensions, PlayerColors},
     systems::apply_damage_system,
 };
 
@@ -79,6 +79,7 @@ impl Plugin for BattlePlugin {
 fn setup_players(
     mut cmd: Commands,
     arena: Res<Arena>,
+    player_colors: Res<PlayerColors>,
     character_dimensions: Res<CharacterDimensions>,
     mut battle_state: ResMut<State<BattleState>>,
     mut packets: EventWriter<ServerPacket>,
@@ -93,53 +94,72 @@ fn setup_players(
     let y1 = player_radius;
     let y2 = player_radius + player_halfheight;
 
-    clients
-        .iter()
-        .zip(spawn_points.iter())
-        .for_each(|((entity, id, client), point)| {
-            let collider = ColliderBundle {
-                collider_type: ColliderType::Solid,
-                shape: ColliderShape::capsule(
-                    [0.0, y1, 0.0].into(),
-                    [0.0, y2, 0.0].into(),
-                    player_radius,
-                ),
-                flags: (ActiveEvents::INTERSECTION_EVENTS).into(),
+    // clients
+    //     .iter()
+    //     .zip(spawn_points.iter())
+    //     .zip(player_colors.colors.iter())
+    itertools::izip!(
+        clients.iter(),
+        spawn_points.iter(),
+        player_colors.colors.iter()
+    )
+    // .for_each(|(((entity, id, client), point), color)| {
+    .for_each(|((entity, id, client), point, color)| {
+        let collider = ColliderBundle {
+            collider_type: ColliderType::Solid,
+            shape: ColliderShape::capsule(
+                [0.0, y1, 0.0].into(),
+                [0.0, y2, 0.0].into(),
+                player_radius,
+            ),
+            flags: (ActiveEvents::INTERSECTION_EVENTS).into(),
+            ..Default::default()
+        };
+
+        let rigidbody = RigidBodyBundle {
+            position: (*point).into(),
+            mass_properties: RigidBodyMassProps {
+                flags: RigidBodyMassPropsFlags::ROTATION_LOCKED_X
+                    | RigidBodyMassPropsFlags::ROTATION_LOCKED_Y
+                    | RigidBodyMassPropsFlags::ROTATION_LOCKED_Z,
                 ..Default::default()
-            };
+            },
+            ..Default::default()
+        };
 
-            let rigidbody = RigidBodyBundle {
-                position: (*point).into(),
-                mass_properties: RigidBodyMassProps {
-                    flags: RigidBodyMassPropsFlags::ROTATION_LOCKED_X
-                        | RigidBodyMassPropsFlags::ROTATION_LOCKED_Y
-                        | RigidBodyMassPropsFlags::ROTATION_LOCKED_Z,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
+        cmd.entity(entity)
+            .insert(Health::new(20))
+            .insert(Position(*point))
+            .insert(Transform::default())
+            .insert_bundle(collider)
+            .insert_bundle(rigidbody)
+            .insert(RigidBodyPositionSync::Discrete);
 
-            cmd.entity(entity)
-                .insert(Health::new(20))
-                .insert(Position(*point))
-                .insert(Transform::default())
-                .insert_bundle(collider)
-                .insert_bundle(rigidbody)
-                .insert(RigidBodyPositionSync::Discrete);
+        let insert_player = InsertPlayerEvent {
+            id: *id,
+            position: *point,
+            is_local: false,
+            color: *color,
+        };
 
-            if let Some(client) = client {
-                packets.send(ServerPacket::except(
-                    ServerMessage::InsertPlayer(*id, *point),
-                    *client,
-                ));
-                packets.send(ServerPacket::single(
-                    ServerMessage::InsertLocalPlayer(*id, *point),
-                    *client,
-                ));
-            } else {
-                packets.send(ServerPacket::all(ServerMessage::InsertPlayer(*id, *point)));
-            }
-        });
+        if let Some(client) = client {
+            packets.send(ServerPacket::except(
+                ServerMessage::InsertPlayer(insert_player.clone()),
+                *client,
+            ));
+            packets.send(ServerPacket::single(
+                ServerMessage::InsertPlayer(InsertPlayerEvent {
+                    is_local: true,
+                    ..insert_player
+                }),
+                *client,
+            ));
+        } else {
+            packets.send(ServerPacket::all(ServerMessage::InsertPlayer(
+                insert_player,
+            )));
+        }
+    });
 }
 
 #[allow(clippy::type_complexity)]

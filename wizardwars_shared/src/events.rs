@@ -1,4 +1,5 @@
 use crate::components::{Client, Uuid};
+use bevy::{math::Vec3, prelude::Color};
 use serde::{Deserialize, Serialize};
 
 pub struct DespawnEntityEvent {
@@ -8,6 +9,14 @@ pub struct DespawnEntityEvent {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SpawnEvent {
     Projectile(Uuid),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct InsertPlayerEvent {
+    pub id: Uuid,
+    pub position: Vec3,
+    pub is_local: bool,
+    pub color: Color,
 }
 
 pub struct ClientEvent<T> {

@@ -2,13 +2,11 @@ use crate::camera::{CameraTarget, FollowCamera};
 use bevy::prelude::*;
 use bevy_mod_picking::{PickableBundle, PickingCameraBundle};
 use std::collections::HashMap;
-use wizardwars_shared::{components::Uuid, events::SpawnEvent, resources::CharacterDimensions};
-
-pub struct InsertPlayerEvent {
-    pub id: Uuid,
-    pub position: Vec3,
-    pub is_local: bool,
-}
+use wizardwars_shared::{
+    components::Uuid,
+    events::{InsertPlayerEvent, SpawnEvent},
+    resources::CharacterDimensions,
+};
 
 pub struct LocalPlayer;
 
@@ -78,6 +76,7 @@ fn spawn_player_system(
             id,
             position,
             is_local,
+            color,
         } = *event;
 
         if let Some(&entity) = clients.get(&id) {
@@ -92,7 +91,7 @@ fn spawn_player_system(
                         max_z: width / 2.0,
                     })),
                     transform: Transform::from_xyz(position.x, position.y, position.z),
-                    material: materials.add(Color::rgb(0.32, 0.44, 0.91).into()),
+                    material: materials.add(color.into()),
                     ..Default::default()
                 })
                 .insert(id);

@@ -1,4 +1,4 @@
-use crate::{arena::InsertPlayerEvent, lobby::LobbyEvent};
+use crate::lobby::LobbyEvent;
 use bevy::{app::AppExit, prelude::*};
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::{
@@ -8,7 +8,7 @@ use std::{
 use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
     components::Uuid,
-    events::{DespawnEntityEvent, SpawnEvent},
+    events::{DespawnEntityEvent, InsertPlayerEvent, SpawnEvent},
     messages::{
         client_messages::{ClientMessage, LobbyClientMessage},
         network_channels_setup,
@@ -124,19 +124,15 @@ fn read_server_message_channel_system(
                 },
                 ServerMessage::Loading(_) => {}
                 ServerMessage::Shopping(_) => {}
-                ServerMessage::InsertLocalPlayer(id, position) => {
-                    insert_player_events.send(InsertPlayerEvent {
-                        id,
-                        position,
-                        is_local: true,
-                    });
-                }
-                ServerMessage::InsertPlayer(id, position) => {
-                    insert_player_events.send(InsertPlayerEvent {
-                        id,
-                        position,
-                        is_local: false,
-                    });
+                // ServerMessage::InsertLocalPlayer(id, position) => {
+                //     insert_player_events.send(InsertPlayerEvent {
+                //         id,
+                //         position,
+                //         is_local: true,
+                //     });
+                // }
+                ServerMessage::InsertPlayer(event) => {
+                    insert_player_events.send(event);
                 }
                 ServerMessage::Spawn(spawn) => {
                     spawn_events.send(spawn);
