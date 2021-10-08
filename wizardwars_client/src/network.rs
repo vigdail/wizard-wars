@@ -102,7 +102,7 @@ fn read_server_message_channel_system(
     mut lobby_events: EventWriter<LobbyEvent>,
     mut spawn_events: EventWriter<SpawnEvent>,
 ) {
-    let mut disconnect = Vec::new();
+    let mut disconnected = Vec::new();
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
@@ -113,9 +113,11 @@ fn read_server_message_channel_system(
                     LobbyServerMessage::Welcome(id) => {
                         cmd.spawn().insert(id);
                     }
-                    LobbyServerMessage::Reject(reason) => {
-                        error!("Cannot enter lobby: {}", reason);
-                        disconnect.push(*handle);
+                    LobbyServerMessage::Reject { reason, disconnect } => {
+                        error!("Cannot perform action: {:?}", reason);
+                        if disconnect {
+                            disconnected.push(*handle);
+                        }
                     }
                     LobbyServerMessage::SetHost(_) => {}
                     LobbyServerMessage::PlayerJoined(id, _) => {
@@ -142,7 +144,7 @@ fn read_server_message_channel_system(
         }
     }
 
-    for handle in disconnect {
+    for handle in disconnected {
         net.disconnect(handle);
     }
 }

@@ -8,7 +8,7 @@ use wizardwars_shared::{
     events::ClientEvent,
     messages::{
         client_messages::LobbyClientMessage,
-        server_messages::{LobbyServerMessage, ServerMessage},
+        server_messages::{LobbyServerMessage, RejectReason, ServerMessage},
     },
     network::Pack,
     resources::MAX_PLAYERS,
@@ -65,7 +65,10 @@ fn handle_client_joined(
             if players_count >= MAX_PLAYERS {
                 warn!("Max players reached");
                 packets.send(Pack::single(
-                    LobbyServerMessage::Reject("Lobby is full".to_owned()),
+                    LobbyServerMessage::Reject {
+                        reason: RejectReason::LobbyFull,
+                        disconnect: true,
+                    },
                     client,
                 ));
                 continue;
@@ -116,18 +119,32 @@ fn handle_client_joined(
 fn handle_create_bot(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
-    mut host: ResMut<Host>,
+    host: Res<Host>,
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
+    clients: Query<(&Uuid, &Client)>,
+    players: Query<&Player>,
 ) {
+    let mut players_count = players.iter().count();
+    let clients_map = clients.iter().collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
         if let LobbyClientMessage::AddBot = event.event() {
-            let network_id = id_factory.generate();
-
-            if host.0.is_none() {
-                host.0 = Some(network_id);
+            if players_count >= MAX_PLAYERS {
+                warn!("Cannot add a bot, lobby is full");
+                if let Some(host_client) = host.0.and_then(|id| clients_map.get(&id)) {
+                    packets.send(Pack::single(
+                        LobbyServerMessage::Reject {
+                            reason: RejectReason::LobbyFull,
+                            disconnect: false,
+                        },
+                        **host_client,
+                    ));
+                }
+                continue;
             }
+            players_count += 1;
 
+            let network_id = id_factory.generate();
             let name = Name::new("BOT");
 
             cmd.spawn()

@@ -7,9 +7,17 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum RejectReason {
+    LobbyFull,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
     Welcome(Uuid),
-    Reject(String),
+    Reject {
+        reason: RejectReason,
+        disconnect: bool,
+    },
     PlayerJoined(Uuid, String),
     PlayersList(Vec<String>),
     ReadyState(ReadyState),
