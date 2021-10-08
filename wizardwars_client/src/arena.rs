@@ -26,7 +26,7 @@ impl Plugin for ArenaPlugin {
 // TODO: Find out a proper way to do this
 fn apply_pickable(mut cmd: Commands, query: Query<(Entity, &Children, &Name), Changed<Name>>) {
     for (entity, children, name) in query.iter() {
-        if name.as_str() == "arena" {
+        if name.as_str() == "Arena" {
             cmd.entity(entity).insert_bundle(PickableBundle::default());
             for child in children.iter() {
                 cmd.entity(*child).insert_bundle(PickableBundle::default());
