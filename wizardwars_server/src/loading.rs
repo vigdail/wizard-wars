@@ -64,7 +64,7 @@ fn create_arena(
     let clients_count = players.iter().count() as u32;
 
     let spawn_points = SpawnPointsBuilder::new()
-        .with_circle_points(clients_count, 1.0)
+        .with_circle_points(clients_count, 2.0)
         .build();
     let arena = ArenaBuilder::new().with_spawn_points(spawn_points).build();
 
