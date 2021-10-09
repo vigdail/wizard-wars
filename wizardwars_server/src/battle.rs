@@ -94,16 +94,11 @@ fn setup_players(
     let y1 = player_radius;
     let y2 = player_radius + player_halfheight;
 
-    // clients
-    //     .iter()
-    //     .zip(spawn_points.iter())
-    //     .zip(player_colors.colors.iter())
     itertools::izip!(
         clients.iter(),
         spawn_points.iter(),
         player_colors.colors.iter()
     )
-    // .for_each(|(((entity, id, client), point), color)| {
     .for_each(|((entity, id, client), point, color)| {
         let collider = ColliderBundle {
             collider_type: ColliderType::Solid,
