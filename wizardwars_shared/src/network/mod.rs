@@ -1,6 +1,8 @@
 use crate::components::Client;
 use serde::{Deserialize, Serialize};
 
+pub mod sync;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum Dest {
     Single(Client),

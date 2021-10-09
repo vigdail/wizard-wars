@@ -1,5 +1,5 @@
 use super::{
-    network::{Host, IdFactory, ServerPacket},
+    network::{Host, ServerPacket},
     states::ServerState,
 };
 use bevy::{prelude::*, utils::HashMap};
@@ -10,8 +10,8 @@ use wizardwars_shared::{
         client_messages::LobbyClientMessage,
         server_messages::{LobbyServerMessage, RejectReason, ServerMessage},
     },
-    network::Pack,
-    resources::MAX_PLAYERS,
+    network::{sync::CommandsSync, Pack},
+    resources::{IdFactory, MAX_PLAYERS},
 };
 
 pub type LobbyEvent = ClientEvent<LobbyClientMessage>;
@@ -55,7 +55,7 @@ fn handle_client_joined(
     mut host: ResMut<Host>,
     mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(&Uuid, &Name), With<Client>>,
+    clients: Query<&Name, With<Client>>,
     players: Query<&Player>,
 ) {
     let mut players_count = players.iter().count();
@@ -77,6 +77,7 @@ fn handle_client_joined(
 
             let network_id = id_factory.generate();
 
+            // TODO: handle host creation in separate system
             if host.0.is_none() {
                 host.0 = Some(network_id);
             }
@@ -90,24 +91,20 @@ fn handle_client_joined(
                 .insert(ReadyState::NotReady)
                 .insert(network_id);
 
-            packets.send(Pack::single(
-                LobbyServerMessage::Welcome(network_id),
-                client,
-            ));
+            packets.send(Pack::single(LobbyServerMessage::Welcome, client));
             packets.send(Pack::single(
                 LobbyServerMessage::SetHost(host.0.unwrap()),
                 client,
             ));
-            for (&id, name) in clients.iter() {
+            for name in clients.iter() {
                 packets.send(Pack::single(
-                    LobbyServerMessage::PlayerJoined(id, name.to_string()),
+                    LobbyServerMessage::PlayerJoined(name.to_string()),
                     client,
                 ));
             }
 
             packets.send(Pack::except(
                 ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
-                    network_id,
                     client_name.as_str().to_owned(),
                 )),
                 client,
@@ -120,7 +117,6 @@ fn handle_create_bot(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
     host: Res<Host>,
-    mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<(&Uuid, &Client)>,
     players: Query<&Player>,
@@ -144,18 +140,16 @@ fn handle_create_bot(
             }
             players_count += 1;
 
-            let network_id = id_factory.generate();
             let name = Name::new("BOT");
 
-            cmd.spawn()
+            cmd.spawn_sync()
                 .insert(Player)
                 .insert(Bot)
                 .insert(name.clone())
-                .insert(ReadyState::Ready)
-                .insert(network_id);
+                .insert(ReadyState::Ready);
 
             packets.send(Pack::all(ServerMessage::Lobby(
-                LobbyServerMessage::PlayerJoined(network_id, name.as_str().to_owned()),
+                LobbyServerMessage::PlayerJoined(name.as_str().to_owned()),
             )));
         }
     }

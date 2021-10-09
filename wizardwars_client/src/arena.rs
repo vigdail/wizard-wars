@@ -110,8 +110,11 @@ fn handle_spawn_events(
 ) {
     for event in events.iter() {
         match event {
+            SpawnEvent::Entity(id) => {
+                cmd.spawn().insert(*id);
+            }
             SpawnEvent::Projectile(id) => {
-                spawn_projectile(&mut cmd, &mut meshes, &mut materials, *id)
+                spawn_projectile(&mut cmd, &mut meshes, &mut materials, *id);
             }
         }
     }

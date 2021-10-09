@@ -1,8 +1,4 @@
-use crate::{
-    arena::Arena,
-    network::{IdFactory, ServerPacket},
-    states::ServerState,
-};
+use crate::{arena::Arena, network::ServerPacket, states::ServerState};
 use bevy::prelude::*;
 use bevy_rapier3d::{
     physics::{ColliderBundle, IntoEntity, IntoHandle, RigidBodyBundle, RigidBodyPositionSync},
@@ -18,9 +14,9 @@ use wizardwars_shared::{
         damage::{Attack, FireBall},
         Bot, Client, Dead, Health, LifeTime, Owner, Player, Position, Uuid, Waypoint, Winner,
     },
-    events::{ClientEvent, InsertPlayerEvent, SpawnEvent},
+    events::{ClientEvent, InsertPlayerEvent},
     messages::{client_messages::ActionMessage, server_messages::ServerMessage},
-    network::Pack,
+    network::sync::{CommandsSync, EntityCommandsSync},
     resources::{CharacterDimensions, PlayerColors},
     systems::apply_damage_system,
 };
@@ -160,10 +156,8 @@ fn setup_players(
 #[allow(clippy::type_complexity)]
 fn handle_attack_events_system(
     mut cmd: Commands,
-    mut id_factory: ResMut<IdFactory>,
     mut events: EventReader<ClientEvent<ActionMessage>>,
     query: Query<(Entity, &Position, &Client), (With<Health>, Without<Dead>)>,
-    mut packets: EventWriter<ServerPacket>,
 ) {
     let map = query
         .iter()
@@ -177,7 +171,6 @@ fn handle_attack_events_system(
             let target = Vec3::new(target.x, offset, target.z);
             let dir = (origin - target).normalize();
 
-            let id = id_factory.generate();
             let collier = ColliderBundle {
                 collider_type: ColliderType::Sensor,
                 shape: ColliderShape::ball(0.1),
@@ -197,7 +190,7 @@ fn handle_attack_events_system(
                 ..Default::default()
             };
 
-            cmd.spawn()
+            cmd.spawn_sync()
                 .insert(Position(origin))
                 .insert(FireBall {
                     attack: Attack::new(10, 100.0),
@@ -207,17 +200,13 @@ fn handle_attack_events_system(
                 .insert(Transform::default())
                 .insert_bundle(collier)
                 .insert_bundle(rigidbody)
-                .insert(RigidBodyPositionSync::Discrete)
-                .insert(id);
+                .insert(RigidBodyPositionSync::Discrete);
 
             cmd.entity(*attacker_entity).remove::<Waypoint>();
-
-            packets.send(Pack::all(ServerMessage::Spawn(SpawnEvent::Projectile(id))));
         }
     }
 }
 
-// TODO: Should be called right after some rigidbody_positions_sync system
 fn position_sync_system(mut query: Query<(&Transform, &mut Position), Changed<Transform>>) {
     for (transform, mut position) in query.iter_mut() {
         position.0 = transform.translation;
@@ -226,14 +215,13 @@ fn position_sync_system(mut query: Query<(&Transform, &mut Position), Changed<Tr
 
 fn fireball_collision_system(
     mut cmd: Commands,
-    mut packets: EventWriter<ServerPacket>,
-    fireballs: Query<(Entity, &FireBall, &Owner, &Uuid)>,
+    fireballs: Query<(Entity, &FireBall, &Owner)>,
     healths: Query<&Health>,
     mut rigidbodies: Query<&mut RigidBodyForces>,
     rigidbody_props: Query<(&RigidBodyPosition, &RigidBodyVelocity)>,
     narrow_phase: Res<NarrowPhase>,
 ) {
-    for (fireball_entity, fireball, fireball_owner, fireball_id) in fireballs.iter() {
+    for (fireball_entity, fireball, fireball_owner) in fireballs.iter() {
         for (collider1, collider2, _) in narrow_phase.intersections_with(fireball_entity.handle()) {
             let target_entity = {
                 let e1 = collider1.entity();
@@ -287,8 +275,7 @@ fn fireball_collision_system(
                 cmd.entity(target_entity).insert(fireball.attack.damage());
             }
 
-            cmd.entity(fireball_entity).despawn();
-            packets.send(Pack::all(ServerMessage::Despawn(*fireball_id)));
+            cmd.entity(fireball_entity).despawn_sync();
         }
     }
 }
@@ -431,16 +418,12 @@ fn move_to_waypoint_system(
 
 fn track_lifetime_system(
     mut cmd: Commands,
-    mut query: Query<(Entity, &mut LifeTime, Option<&Uuid>)>,
-    mut packets: EventWriter<ServerPacket>,
+    mut query: Query<(Entity, &mut LifeTime)>,
     time: ResMut<Time>,
 ) {
-    for (entity, mut lifetime, id) in query.iter_mut() {
+    for (entity, mut lifetime) in query.iter_mut() {
         if lifetime.timer.tick(time.delta()).just_finished() {
-            cmd.entity(entity).despawn();
-            if let Some(&id) = id {
-                packets.send(Pack::all(ServerMessage::Despawn(id)));
-            }
+            cmd.entity(entity).despawn_sync();
         }
     }
 }

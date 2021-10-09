@@ -8,6 +8,7 @@ pub struct DespawnEntityEvent {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum SpawnEvent {
+    Entity(Uuid),
     Projectile(Uuid),
 }
 

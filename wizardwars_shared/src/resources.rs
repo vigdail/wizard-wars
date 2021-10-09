@@ -1,4 +1,8 @@
+use std::slice::Iter;
+
 use bevy::prelude::*;
+
+use crate::components::Uuid;
 
 pub struct CharacterDimensions {
     width: f32,
@@ -61,5 +65,51 @@ impl Default for PlayerColors {
             Color::WHITE,
         ];
         Self { colors }
+    }
+}
+
+#[derive(Default)]
+pub struct IdFactory(u32);
+
+impl IdFactory {
+    pub fn generate(&mut self) -> Uuid {
+        let id = Uuid(self.0);
+        self.0 += 1;
+
+        id
+    }
+}
+
+#[derive(Default)]
+pub struct DespawnedList {
+    ids: Vec<Uuid>,
+}
+
+impl DespawnedList {
+    pub fn push(&mut self, id: Uuid) {
+        self.ids.push(id);
+    }
+
+    pub fn iter(&self) -> Iter<'_, Uuid> {
+        self.ids.iter()
+    }
+
+    pub fn clear(&mut self) {
+        self.ids.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn id_factory() {
+        let mut factory = IdFactory::default();
+        let id1 = factory.generate();
+        assert_eq!(id1, Uuid(0));
+
+        let id2 = factory.generate();
+        assert_eq!(id2, Uuid(1));
     }
 }

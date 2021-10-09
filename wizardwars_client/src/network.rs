@@ -95,7 +95,6 @@ fn handle_network_events_system(
 }
 
 fn read_server_message_channel_system(
-    mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut insert_player_events: EventWriter<InsertPlayerEvent>,
     mut remove_player_events: EventWriter<DespawnEntityEvent>,
@@ -110,8 +109,8 @@ fn read_server_message_channel_system(
             info!("Received message: {:?}", message);
             match message {
                 ServerMessage::Lobby(msg) => match msg {
-                    LobbyServerMessage::Welcome(id) => {
-                        cmd.spawn().insert(id);
+                    LobbyServerMessage::Welcome => {
+                        //
                     }
                     LobbyServerMessage::Reject { reason, disconnect } => {
                         error!("Cannot perform action: {:?}", reason);
@@ -120,8 +119,8 @@ fn read_server_message_channel_system(
                         }
                     }
                     LobbyServerMessage::SetHost(_) => {}
-                    LobbyServerMessage::PlayerJoined(id, _) => {
-                        cmd.spawn().insert(id);
+                    LobbyServerMessage::PlayerJoined(_) => {
+                        //
                     }
                     LobbyServerMessage::ReadyState(_) => {}
                     LobbyServerMessage::StartLoading => {

@@ -1,28 +1,18 @@
-use crate::loading::LoadCompleteEvent;
-use crate::lobby::LobbyEvent;
-use crate::states::ServerState;
-use bevy::prelude::*;
-use bevy::utils::HashMap;
+use crate::{loading::LoadCompleteEvent, lobby::LobbyEvent, states::ServerState};
+use bevy::{prelude::*, utils::HashMap};
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use wizardwars_shared::components::{Client, Position, Uuid};
-use wizardwars_shared::events::ClientEvent;
-use wizardwars_shared::messages::client_messages::{ActionMessage, ClientMessage, Verify};
-use wizardwars_shared::messages::server_messages::LobbyServerMessage;
-use wizardwars_shared::messages::{network_channels_setup, server_messages::ServerMessage};
-use wizardwars_shared::network::{Dest, Pack};
-
-#[derive(Default)]
-pub struct IdFactory(u32);
-
-impl IdFactory {
-    pub fn generate(&mut self) -> Uuid {
-        let id = Uuid(self.0);
-        self.0 += 1;
-
-        id
-    }
-}
+use wizardwars_shared::{
+    components::{Client, Position, Uuid},
+    events::{ClientEvent, SpawnEvent},
+    messages::{
+        client_messages::{ActionMessage, ClientMessage, Verify},
+        network_channels_setup,
+        server_messages::{LobbyServerMessage, ServerMessage},
+    },
+    network::{sync::EntityCommandsSync, Dest, Pack},
+    resources::{DespawnedList, IdFactory},
+};
 
 #[derive(Default)]
 pub struct Host(pub Option<Uuid>);
@@ -59,6 +49,8 @@ impl Plugin for NetworkPlugin {
             .add_system(handle_network_events_system.system())
             .add_system(read_network_channels_system.system())
             .add_system(send_packets_system.system())
+            .add_system(spawn_sync_system.system())
+            .add_system(despawn_sync_system.system())
             .add_system(broadcast_changes_system.system());
     }
 }
@@ -81,7 +73,6 @@ fn handle_network_events_system(
         .iter()
         .map(|(entity, client, id)| (client.0, (entity, id)))
         .collect::<HashMap<_, _>>();
-    let mut disconnected = Vec::new();
 
     for event in network_event_reader.iter() {
         match event {
@@ -94,31 +85,52 @@ fn handle_network_events_system(
             NetworkEvent::Disconnected(handle) => {
                 info!("Disconnected handle: {:?}", &handle);
                 if let Some(&(entity, &id)) = clients_map.get(handle) {
-                    cmd.entity(entity).despawn();
-                    disconnected.push(id);
+                    cmd.entity(entity).despawn_sync();
+                    handle_host_disconnection(&mut host, id, &clients_map, &mut net);
                 }
             }
             _ => {}
         }
     }
-    for id in disconnected.into_iter() {
-        net.broadcast_message(ServerMessage::Despawn(id));
+}
 
-        if host.is_host(&id) {
-            let new_host_id = clients_map.iter().find_map(|(_, (_, &client_id))| {
-                if client_id != id {
-                    Some(client_id)
-                } else {
-                    None
-                }
-            });
-            host.set_host(new_host_id);
-
-            if let Some(host_id) = new_host_id {
-                net.broadcast_message(ServerMessage::Lobby(LobbyServerMessage::SetHost(host_id)));
+fn handle_host_disconnection(
+    host: &mut ResMut<Host>,
+    id: Uuid,
+    clients_map: &HashMap<u32, (Entity, &Uuid)>,
+    net: &mut ResMut<NetworkResource>,
+) {
+    if host.is_host(&id) {
+        let new_host_id = clients_map.iter().find_map(|(_, (_, &client_id))| {
+            if client_id != id {
+                Some(client_id)
+            } else {
+                None
             }
+        });
+        host.set_host(new_host_id);
+
+        if let Some(host_id) = new_host_id {
+            net.broadcast_message(ServerMessage::Lobby(LobbyServerMessage::SetHost(host_id)));
         }
     }
+}
+
+fn spawn_sync_system(mut packets: EventWriter<ServerPacket>, query: Query<&Uuid, Changed<Uuid>>) {
+    for id in query.iter() {
+        packets.send(Pack::all(SpawnEvent::Entity(*id)));
+    }
+}
+
+fn despawn_sync_system(
+    mut packets: EventWriter<ServerPacket>,
+    mut despawned: ResMut<DespawnedList>,
+) {
+    for id in despawned.iter() {
+        packets.send(Pack::all(ServerMessage::Despawn(*id)));
+    }
+
+    despawned.clear();
 }
 
 fn read_network_channels_system(
@@ -189,20 +201,5 @@ fn broadcast_changes_system(
 ) {
     for (id, position) in changed_positions.iter() {
         let _ = net.broadcast_message((*id, *position));
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn id_factory() {
-        let mut factory = IdFactory::default();
-        let id1 = factory.generate();
-        assert_eq!(id1, Uuid(0));
-
-        let id2 = factory.generate();
-        assert_eq!(id2, Uuid(1));
     }
 }

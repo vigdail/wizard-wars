@@ -13,12 +13,12 @@ pub enum RejectReason {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
-    Welcome(Uuid),
+    Welcome,
     Reject {
         reason: RejectReason,
         disconnect: bool,
     },
-    PlayerJoined(Uuid, String),
+    PlayerJoined(String),
     PlayersList(Vec<String>),
     ReadyState(ReadyState),
     SetHost(Uuid),
@@ -55,3 +55,4 @@ pub enum ServerMessage {
 enum_from!(ServerMessage, Lobby, LobbyServerMessage);
 enum_from!(ServerMessage, Loading, LoadingServerMessage);
 enum_from!(ServerMessage, Shopping, ShoppingServerMessage);
+enum_from!(ServerMessage, Spawn, SpawnEvent);
