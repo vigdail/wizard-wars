@@ -3708,6 +3708,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
+name = "sum_type"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da5b4a0c9f3c7c8e891e445a7c776627e208e8bba23ab680798066dd283e6a15"
+
+[[package]]
 name = "svg_fmt"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4269,6 +4275,8 @@ dependencies = [
  "bevy",
  "bevy_networking_turbulence",
  "serde",
+ "sum_type",
+ "turbulence",
 ]
 
 [[package]]

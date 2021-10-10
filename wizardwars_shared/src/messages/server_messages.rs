@@ -2,9 +2,12 @@ use crate::{
     components::{ReadyState, Uuid},
     enum_from,
     events::{InsertPlayerEvent, SpawnEvent},
+    network::sync::packet::{CompSyncPackage, EntityPackage},
 };
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
+use super::ecs_message::EcsCompPacket;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RejectReason {
@@ -12,8 +15,13 @@ pub enum RejectReason {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct WorldSync {
+    pub entity_package: EntityPackage<EcsCompPacket>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum LobbyServerMessage {
-    Welcome,
+    Welcome(WorldSync),
     Reject {
         reason: RejectReason,
         disconnect: bool,
@@ -56,3 +64,7 @@ enum_from!(ServerMessage, Lobby, LobbyServerMessage);
 enum_from!(ServerMessage, Loading, LoadingServerMessage);
 enum_from!(ServerMessage, Shopping, ShoppingServerMessage);
 enum_from!(ServerMessage, Spawn, SpawnEvent);
+
+// TODO: Separate reliable and unraliable
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ComponentSyncMessage(pub CompSyncPackage<EcsCompPacket>);

@@ -10,7 +10,7 @@ use camera::CameraPlugin;
 use lobby::LobbyPlugin;
 use network::{read_component_channel_system, NetworkPlugin};
 use wizardwars_shared::{
-    components::{Position, ReadyState},
+    components::{Player, Position, ReadyState},
     messages::client_messages::{ActionMessage, ClientMessage, LobbyClientMessage},
     resources::{ArenaDimensions, CharacterDimensions},
 };
@@ -44,9 +44,11 @@ impl Plugin for ClientPlugin {
         .add_system_to_stage(CoreStage::PreUpdate, input_system.system())
         .add_system_to_stage(CoreStage::PreUpdate, network_mock_input_system.system())
         .add_system(update_translation_system.system())
-        .add_system_to_stage(
-            CoreStage::PreUpdate,
-            read_component_channel_system::<Position>.system(),
+        .add_system_set_to_stage(
+            CoreStage::PostUpdate,
+            SystemSet::new()
+                .with_system(read_component_channel_system::<Position>.system())
+                .with_system(read_component_channel_system::<Player>.system()),
         );
     }
 }
@@ -74,17 +76,18 @@ fn input_system(
         }
     }
 
-    if mouse_input.just_pressed(MouseButton::Left) {
-        let target = camera_query
-            .single()
-            .ok()
-            .and_then(|camera| camera.intersect_top())
-            .map(|(_, intersect)| intersect.position());
+    // TODO uncomment
+    // if mouse_input.just_pressed(MouseButton::Left) {
+    //     let target = camera_query
+    //         .single()
+    //         .ok()
+    //         .and_then(|camera| camera.intersect_top())
+    //         .map(|(_, intersect)| intersect.position());
 
-        if let Some(target) = target {
-            net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall(target)));
-        }
-    }
+    //     if let Some(target) = target {
+    //         net.broadcast_message(ClientMessage::Action(ActionMessage::FireBall(target)));
+    //     }
+    // }
 }
 
 fn network_mock_input_system(input: Res<Input<KeyCode>>, mut net: ResMut<NetworkResource>) {

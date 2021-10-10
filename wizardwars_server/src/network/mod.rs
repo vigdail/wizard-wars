@@ -2,45 +2,57 @@ use crate::{loading::LoadCompleteEvent, lobby::LobbyEvent, states::ServerState};
 use bevy::{prelude::*, utils::HashMap};
 use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
-    components::{Client, Position, Uuid},
+    components::{Client, HostComponent, Player, Position, Uuid},
     events::{ClientEvent, SpawnEvent},
     messages::{
         client_messages::{ActionMessage, ClientMessage, Verify},
+        ecs_message::EcsCompPacket,
         network_channels_setup,
-        server_messages::{LobbyServerMessage, ServerMessage},
+        server_messages::{ComponentSyncMessage, LobbyServerMessage, ServerMessage, WorldSync},
     },
-    network::{sync::EntityCommandsSync, Dest, Pack},
-    resources::{DespawnedList, IdFactory},
+    network::{
+        sync::{
+            packet::{CompSyncPackage, CompUpdateKind},
+            EntityCommandsSync,
+        },
+        Dest, Pack,
+    },
+    resources::{DespawnedList, IdFactory, WorldSyncList},
 };
-
-#[derive(Default)]
-pub struct Host(pub Option<Uuid>);
-
-impl Host {
-    pub fn set_host(&mut self, id: Option<Uuid>) {
-        self.0 = id;
-    }
-
-    pub fn is_host(&self, id: &Uuid) -> bool {
-        Some(*id) == self.0
-    }
-}
 
 pub struct NetworkPlugin;
 
 pub type ServerPacket = Pack<ServerMessage>;
 
+#[derive(Debug, Hash, PartialEq, Eq, Clone, StageLabel)]
+pub enum SyncStage {
+    Spawn,
+    Despawn,
+    Components,
+}
+
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.insert_resource(IdFactory::default())
-            .insert_resource(Host::default())
             .add_event::<ServerPacket>()
             .add_plugin(NetworkingPlugin {
                 idle_timeout_ms: Some(3000),
                 auto_heartbeat_ms: Some(1000),
                 ..Default::default()
             })
+            .add_stage_after(CoreStage::Update, SyncStage::Spawn, SystemStage::parallel())
+            .add_stage_after(
+                SyncStage::Spawn,
+                SyncStage::Despawn,
+                SystemStage::parallel(),
+            )
+            .add_stage_after(
+                SyncStage::Despawn,
+                SyncStage::Components,
+                SystemStage::parallel(),
+            )
             .add_system_set(
                 SystemSet::on_enter(ServerState::Init)
                     .with_system(network_channels_setup.system())
@@ -49,9 +61,15 @@ impl Plugin for NetworkPlugin {
             .add_system(handle_network_events_system.system())
             .add_system(read_network_channels_system.system())
             .add_system(send_packets_system.system())
-            .add_system(spawn_sync_system.system())
-            .add_system(despawn_sync_system.system())
-            .add_system(broadcast_changes_system.system());
+            .add_system_to_stage(SyncStage::Spawn, spawn_sync_system.system())
+            .add_system_to_stage(SyncStage::Spawn, world_sync_system.system())
+            .add_system_to_stage(SyncStage::Despawn, despawn_sync_system.system())
+            .add_system_set_to_stage(
+                SyncStage::Components,
+                SystemSet::new()
+                    .with_system(broadcast_changes_system::<Position>.system())
+                    .with_system(broadcast_changes_system::<Player>.system()),
+            );
     }
 }
 
@@ -66,12 +84,11 @@ fn handle_network_events_system(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut network_event_reader: EventReader<NetworkEvent>,
-    mut host: ResMut<Host>,
-    clients: Query<(Entity, &Client, &Uuid)>,
+    clients: Query<(Entity, &Client, Option<&HostComponent>)>,
 ) {
     let clients_map = clients
         .iter()
-        .map(|(entity, client, id)| (client.0, (entity, id)))
+        .map(|(entity, client, host)| (client.0, (entity, host)))
         .collect::<HashMap<_, _>>();
 
     for event in network_event_reader.iter() {
@@ -84,9 +101,16 @@ fn handle_network_events_system(
             },
             NetworkEvent::Disconnected(handle) => {
                 info!("Disconnected handle: {:?}", &handle);
-                if let Some(&(entity, &id)) = clients_map.get(handle) {
+                if let Some(&(entity, host)) = clients_map.get(handle) {
                     cmd.entity(entity).despawn_sync();
-                    handle_host_disconnection(&mut host, id, &clients_map, &mut net);
+                    if host.is_some() {
+                        let new_host_entity = clients_map
+                            .iter()
+                            .find_map(|(_, (entity, host))| host.map(|_| *entity));
+                        if let Some(new_host_entity) = new_host_entity {
+                            cmd.entity(new_host_entity).insert(HostComponent);
+                        }
+                    }
                 }
             }
             _ => {}
@@ -94,32 +118,24 @@ fn handle_network_events_system(
     }
 }
 
-fn handle_host_disconnection(
-    host: &mut ResMut<Host>,
-    id: Uuid,
-    clients_map: &HashMap<u32, (Entity, &Uuid)>,
-    net: &mut ResMut<NetworkResource>,
-) {
-    if host.is_host(&id) {
-        let new_host_id = clients_map.iter().find_map(|(_, (_, &client_id))| {
-            if client_id != id {
-                Some(client_id)
-            } else {
-                None
-            }
-        });
-        host.set_host(new_host_id);
-
-        if let Some(host_id) = new_host_id {
-            net.broadcast_message(ServerMessage::Lobby(LobbyServerMessage::SetHost(host_id)));
-        }
+fn spawn_sync_system(mut packets: EventWriter<ServerPacket>, query: Query<&Uuid, Changed<Uuid>>) {
+    for id in query.iter() {
+        info!("Spawn: {:?}", id);
+        packets.send(Pack::all(SpawnEvent::Entity(*id)));
     }
 }
 
-fn spawn_sync_system(mut packets: EventWriter<ServerPacket>, query: Query<&Uuid, Changed<Uuid>>) {
-    for id in query.iter() {
-        packets.send(Pack::all(SpawnEvent::Entity(*id)));
+fn world_sync_system(mut packets: EventWriter<ServerPacket>, mut sync: ResMut<WorldSyncList>) {
+    for (client, pack) in sync.iter() {
+        packets.send(Pack::single(
+            LobbyServerMessage::Welcome(WorldSync {
+                entity_package: pack.clone(),
+            }),
+            *client,
+        ));
     }
+
+    sync.clear();
 }
 
 fn despawn_sync_system(
@@ -127,6 +143,7 @@ fn despawn_sync_system(
     mut despawned: ResMut<DespawnedList>,
 ) {
     for id in despawned.iter() {
+        info!("Despawn: {:?}", id);
         packets.send(Pack::all(ServerMessage::Despawn(*id)));
     }
 
@@ -138,21 +155,22 @@ fn read_network_channels_system(
     mut action_events: EventWriter<ClientEvent<ActionMessage>>,
     mut lobby_events: EventWriter<LobbyEvent>,
     mut loading_events: EventWriter<LoadCompleteEvent>,
-    host: Res<Host>,
-    query: Query<(&Client, &Uuid)>,
+    // host: Res<Host>,
+    query: Query<(&Client, Option<&HostComponent>)>,
 ) {
     let client_map = query
         .iter()
-        .map(|(client, &id)| (client, id))
+        .map(|(client, host)| (client, host))
         .collect::<HashMap<_, _>>();
 
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         let client = Client(*handle);
-        let client_id = client_map.get(&client);
+        let host = client_map.get(&client).and_then(|host| host.as_deref());
         while let Some(message) = channels.recv::<ClientMessage>() {
-            let is_host = client_id.map(|id| host.is_host(id)).unwrap_or(false);
+            // let is_host = client_id.map(|id| host.is_host(id)).unwrap_or(false);
+            let is_host = host.is_some();
             if !message.verify(is_host) {
                 error!("Only host can use: {:?}", message);
                 continue;
@@ -195,11 +213,19 @@ fn send_packets_system(
     }
 }
 
-fn broadcast_changes_system(
+fn broadcast_changes_system<C>(
     mut net: ResMut<NetworkResource>,
-    changed_positions: Query<(&Uuid, &Position), Changed<Position>>,
-) {
-    for (id, position) in changed_positions.iter() {
-        let _ = net.broadcast_message((*id, *position));
+    changed: Query<(&Uuid, &C), Changed<C>>,
+    // mut sync_pack: ResMut<
+) where
+    C: Into<EcsCompPacket> + ChannelMessage + std::fmt::Debug + Clone + Copy,
+{
+    for (id, component) in changed.iter() {
+        // info!("Sync component: {:?} => {:?}", id, component);
+        let pack = CompSyncPackage {
+            comp_updates: vec![(*id, CompUpdateKind::Inserted((*component).into()))],
+        };
+        let message = ComponentSyncMessage(pack);
+        let _ = net.broadcast_message(message);
     }
 }

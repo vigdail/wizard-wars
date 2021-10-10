@@ -1,17 +1,17 @@
-use super::{
-    network::{Host, ServerPacket},
-    states::ServerState,
-};
+use super::{network::ServerPacket, states::ServerState};
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
-    components::{Bot, Client, Player, ReadyState, Uuid},
+    components::{Bot, Client, HostComponent, Player, ReadyState},
     events::ClientEvent,
     messages::{
         client_messages::LobbyClientMessage,
         server_messages::{LobbyServerMessage, RejectReason, ServerMessage},
     },
-    network::{sync::CommandsSync, Pack},
-    resources::{IdFactory, MAX_PLAYERS},
+    network::{
+        sync::{CommandsSync, EntityCommandsSync},
+        Pack,
+    },
+    resources::MAX_PLAYERS,
 };
 
 pub type LobbyEvent = ClientEvent<LobbyClientMessage>;
@@ -52,13 +52,13 @@ fn teardown_lobby(mut cmd: Commands) {
 fn handle_client_joined(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
-    mut host: ResMut<Host>,
-    mut id_factory: ResMut<IdFactory>,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<&Name, With<Client>>,
+    hosts: Query<Option<&HostComponent>>,
     players: Query<&Player>,
 ) {
     let mut players_count = players.iter().count();
+    let mut has_host = hosts.iter().next().is_some();
     for event in lobby_evets.iter() {
         let client = *event.client();
         if let LobbyClientMessage::Join(name) = event.event() {
@@ -75,27 +75,26 @@ fn handle_client_joined(
             }
             players_count += 1;
 
-            let network_id = id_factory.generate();
-
-            // TODO: handle host creation in separate system
-            if host.0.is_none() {
-                host.0 = Some(network_id);
-            }
-
             let client_name = Name::new(name.clone());
 
-            cmd.spawn()
+            let mut builder = cmd.spawn_sync();
+            builder
                 .insert(client)
                 .insert(Player)
                 .insert(client_name.clone())
-                .insert(ReadyState::NotReady)
-                .insert(network_id);
+                .insert(ReadyState::NotReady);
 
-            packets.send(Pack::single(LobbyServerMessage::Welcome, client));
-            packets.send(Pack::single(
-                LobbyServerMessage::SetHost(host.0.unwrap()),
-                client,
-            ));
+            if !has_host {
+                builder.insert(HostComponent);
+                has_host = true;
+            }
+
+            builder.sync_world();
+
+            // packets.send(Pack::single(
+            //     LobbyServerMessage::Welcome(WorldSync {}),
+            //     client,
+            // ));
             for name in clients.iter() {
                 packets.send(Pack::single(
                     LobbyServerMessage::PlayerJoined(name.to_string()),
@@ -104,9 +103,7 @@ fn handle_client_joined(
             }
 
             packets.send(Pack::except(
-                ServerMessage::Lobby(LobbyServerMessage::PlayerJoined(
-                    client_name.as_str().to_owned(),
-                )),
+                LobbyServerMessage::PlayerJoined(client_name.as_str().to_owned()),
                 client,
             ));
         }
@@ -116,24 +113,22 @@ fn handle_client_joined(
 fn handle_create_bot(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
-    host: Res<Host>,
     mut packets: EventWriter<ServerPacket>,
-    clients: Query<(&Uuid, &Client)>,
+    host: Query<&Client, With<HostComponent>>,
     players: Query<&Player>,
 ) {
     let mut players_count = players.iter().count();
-    let clients_map = clients.iter().collect::<HashMap<_, _>>();
     for event in lobby_evets.iter() {
         if let LobbyClientMessage::AddBot = event.event() {
             if players_count >= MAX_PLAYERS {
                 warn!("Cannot add a bot, lobby is full");
-                if let Some(host_client) = host.0.and_then(|id| clients_map.get(&id)) {
+                if let Some(host_client) = host.iter().next() {
                     packets.send(Pack::single(
                         LobbyServerMessage::Reject {
                             reason: RejectReason::LobbyFull,
                             disconnect: false,
                         },
-                        **host_client,
+                        *host_client,
                     ));
                 }
                 continue;

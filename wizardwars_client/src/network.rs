@@ -11,9 +11,11 @@ use wizardwars_shared::{
     events::{DespawnEntityEvent, InsertPlayerEvent, SpawnEvent},
     messages::{
         client_messages::{ClientMessage, LobbyClientMessage},
+        ecs_message::EcsCompPacket,
         network_channels_setup,
-        server_messages::{LobbyServerMessage, ServerMessage},
+        server_messages::{ComponentSyncMessage, LobbyServerMessage, ServerMessage, WorldSync},
     },
+    network::sync::packet::{CompPacket, CompUpdateKind},
 };
 
 pub struct NetworkPlugin;
@@ -22,6 +24,7 @@ impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut AppBuilder) {
         app.add_event::<ClientMessage>()
             .add_event::<DespawnEntityEvent>()
+            .add_event::<WorldSync>()
             .add_plugin(NetworkingPlugin {
                 idle_timeout_ms: Some(3000),
                 auto_heartbeat_ms: Some(1000),
@@ -31,28 +34,45 @@ impl Plugin for NetworkPlugin {
             .add_startup_system(client_setup_system.system())
             .add_system(handle_network_events_system.system())
             .add_system(send_packets_system.system())
-            .add_system(read_server_message_channel_system.system())
+            .add_system_to_stage(
+                CoreStage::PreUpdate,
+                read_server_message_channel_system.system(),
+            )
             .add_system(despawn_entities_system.system())
-            .add_system_to_stage(CoreStage::Last, handle_app_exit_event.system());
+            .add_system_to_stage(CoreStage::Last, handle_app_exit_event.system())
+            .add_system_set_to_stage(
+                CoreStage::PostUpdate,
+                SystemSet::new().with_system(world_sync_system.system()),
+            );
     }
 }
 
-pub fn read_component_channel_system<C: ChannelMessage>(
+pub fn read_component_channel_system<C: ChannelMessage + std::fmt::Debug>(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
-    players_query: Query<(&Uuid, Entity)>,
+    entities_query: Query<(&Uuid, Entity)>,
 ) {
-    let players: HashMap<&Uuid, Entity> = players_query.iter().map(|(id, e)| (id, e)).collect();
+    let entities: HashMap<&Uuid, Entity> = entities_query.iter().map(|(id, e)| (id, e)).collect();
 
     for (_, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
-        while let Some((network_id, component)) = channels.recv::<(Uuid, C)>() {
-            match players.get(&network_id) {
-                Some(entity) => {
-                    cmd.entity(*entity).insert(component);
-                }
-                None => {
-                    warn!("No player found with id: {:?}", network_id);
+        while let Some(ComponentSyncMessage(pack)) = channels.recv::<ComponentSyncMessage>() {
+            for (id, update) in pack.comp_updates.into_iter() {
+                match entities.get(&id) {
+                    Some(entity) => match update {
+                        CompUpdateKind::Inserted(update) => {
+                            update.apply_insert(*entity, &mut cmd);
+                        }
+                        CompUpdateKind::Modified(update) => {
+                            update.apply_modify(*entity, &mut cmd);
+                        }
+                        CompUpdateKind::Removed(update) => {
+                            EcsCompPacket::apply_remove(update, *entity, &mut cmd);
+                        }
+                    },
+                    None => {
+                        warn!("No entity found with id: {:?}", id);
+                    }
                 }
             }
         }
@@ -99,6 +119,7 @@ fn read_server_message_channel_system(
     mut insert_player_events: EventWriter<InsertPlayerEvent>,
     mut remove_player_events: EventWriter<DespawnEntityEvent>,
     mut lobby_events: EventWriter<LobbyEvent>,
+    mut world_sync_events: EventWriter<WorldSync>,
     mut spawn_events: EventWriter<SpawnEvent>,
 ) {
     let mut disconnected = Vec::new();
@@ -109,8 +130,8 @@ fn read_server_message_channel_system(
             info!("Received message: {:?}", message);
             match message {
                 ServerMessage::Lobby(msg) => match msg {
-                    LobbyServerMessage::Welcome => {
-                        //
+                    LobbyServerMessage::Welcome(pack) => {
+                        world_sync_events.send(pack);
                     }
                     LobbyServerMessage::Reject { reason, disconnect } => {
                         error!("Cannot perform action: {:?}", reason);
@@ -186,6 +207,25 @@ fn despawn_entities_system(
             cmd.entity(entity).despawn();
         } else {
             warn!("Trying to remove non existing entity: {:?}", event.id);
+        }
+    }
+}
+
+fn world_sync_system(
+    mut cmd: Commands,
+    mut events: EventReader<WorldSync>,
+    query: Query<(&Uuid, Entity)>,
+) {
+    let map = query.iter().collect::<HashMap<_, _>>();
+    for event in events.iter() {
+        let package = &event.entity_package;
+        let entity = map
+            .get(&package.uid)
+            .cloned()
+            .unwrap_or_else(|| cmd.spawn().insert(package.uid).id());
+
+        for comp in package.comps.iter() {
+            comp.clone().apply_insert(entity, &mut cmd);
         }
     }
 }

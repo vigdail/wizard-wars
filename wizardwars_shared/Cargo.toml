@@ -8,3 +8,5 @@ version = "0.1.0"
 bevy = {version = "0.5.0", default-features = false, features = ["dynamic"]}
 bevy_networking_turbulence = {git = "https://github.com/vigdail/bevy_networking_turbulence.git", branch = "bugfix/heartbeat_and_channels"}
 serde = {version = "1.0.130", features = ["derive"]}
+sum_type = "0.2.0"
+turbulence = "0.3.0"

@@ -1,8 +1,10 @@
-use std::slice::Iter;
-
+use crate::{
+    components::{Client, Uuid},
+    messages::ecs_message::EcsCompPacket,
+    network::sync::packet::EntityPackage,
+};
 use bevy::prelude::*;
-
-use crate::components::Uuid;
+use std::slice::Iter;
 
 pub struct CharacterDimensions {
     width: f32,
@@ -96,6 +98,25 @@ impl DespawnedList {
 
     pub fn clear(&mut self) {
         self.ids.clear();
+    }
+}
+
+#[derive(Default)]
+pub struct WorldSyncList {
+    list: Vec<(Client, EntityPackage<EcsCompPacket>)>,
+}
+
+impl WorldSyncList {
+    pub fn push(&mut self, client: Client, item: EntityPackage<EcsCompPacket>) {
+        self.list.push((client, item));
+    }
+
+    pub fn iter(&self) -> Iter<'_, (Client, EntityPackage<EcsCompPacket>)> {
+        self.list.iter()
+    }
+
+    pub fn clear(&mut self) {
+        self.list.clear();
     }
 }
 
