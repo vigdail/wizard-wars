@@ -4,7 +4,7 @@ use bevy_networking_turbulence::{NetworkEvent, NetworkResource, NetworkingPlugin
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use turbulence::message_channels::ChannelMessage;
 use wizardwars_shared::{
-    components::{Client, HostComponent, Player, Position, Uuid},
+    components::{Client, Host, Player, Position, Uuid},
     events::{ClientEvent, SpawnEvent},
     messages::{
         client_messages::{ActionMessage, ClientMessage, Verify},
@@ -84,7 +84,7 @@ fn handle_network_events_system(
     mut cmd: Commands,
     mut net: ResMut<NetworkResource>,
     mut network_event_reader: EventReader<NetworkEvent>,
-    clients: Query<(Entity, &Client, Option<&HostComponent>)>,
+    clients: Query<(Entity, &Client, Option<&Host>)>,
 ) {
     let clients_map = clients
         .iter()
@@ -108,7 +108,7 @@ fn handle_network_events_system(
                             .iter()
                             .find_map(|(_, (entity, host))| host.map(|_| *entity));
                         if let Some(new_host_entity) = new_host_entity {
-                            cmd.entity(new_host_entity).insert(HostComponent);
+                            cmd.entity(new_host_entity).insert(Host);
                         }
                     }
                 }
@@ -155,22 +155,15 @@ fn read_network_channels_system(
     mut action_events: EventWriter<ClientEvent<ActionMessage>>,
     mut lobby_events: EventWriter<LobbyEvent>,
     mut loading_events: EventWriter<LoadCompleteEvent>,
-    // host: Res<Host>,
-    query: Query<(&Client, Option<&HostComponent>)>,
+    host_query: Query<&Client, With<Host>>,
 ) {
-    let client_map = query
-        .iter()
-        .map(|(client, host)| (client, host))
-        .collect::<HashMap<_, _>>();
-
+    let host = host_query.iter().next();
     for (handle, connection) in net.connections.iter_mut() {
         let channels = connection.channels().unwrap();
 
         let client = Client(*handle);
-        let host = client_map.get(&client).and_then(|host| host.as_deref());
         while let Some(message) = channels.recv::<ClientMessage>() {
-            // let is_host = client_id.map(|id| host.is_host(id)).unwrap_or(false);
-            let is_host = host.is_some();
+            let is_host = host.map(|host| host == &client).unwrap_or(false);
             if !message.verify(is_host) {
                 error!("Only host can use: {:?}", message);
                 continue;

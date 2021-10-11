@@ -19,7 +19,7 @@ pub struct Player;
 pub struct Bot;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-pub struct HostComponent;
+pub struct Host;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct Position(pub Vec3);

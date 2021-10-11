@@ -1,7 +1,7 @@
 use super::{network::ServerPacket, states::ServerState};
 use bevy::{prelude::*, utils::HashMap};
 use wizardwars_shared::{
-    components::{Bot, Client, HostComponent, Player, ReadyState},
+    components::{Bot, Client, Host, Player, ReadyState},
     events::ClientEvent,
     messages::{
         client_messages::LobbyClientMessage,
@@ -54,7 +54,7 @@ fn handle_client_joined(
     mut lobby_evets: EventReader<LobbyEvent>,
     mut packets: EventWriter<ServerPacket>,
     clients: Query<&Name, With<Client>>,
-    hosts: Query<Option<&HostComponent>>,
+    hosts: Query<Option<&Host>>,
     players: Query<&Player>,
 ) {
     let mut players_count = players.iter().count();
@@ -85,7 +85,7 @@ fn handle_client_joined(
                 .insert(ReadyState::NotReady);
 
             if !has_host {
-                builder.insert(HostComponent);
+                builder.insert(Host);
                 has_host = true;
             }
 
@@ -114,7 +114,7 @@ fn handle_create_bot(
     mut cmd: Commands,
     mut lobby_evets: EventReader<LobbyEvent>,
     mut packets: EventWriter<ServerPacket>,
-    host: Query<&Client, With<HostComponent>>,
+    host: Query<&Client, With<Host>>,
     players: Query<&Player>,
 ) {
     let mut players_count = players.iter().count();
