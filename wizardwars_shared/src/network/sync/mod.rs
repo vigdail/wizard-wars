@@ -98,10 +98,6 @@ impl<'a> CommandsSync<'a> for Commands<'a> {
 
         commands
     }
-
-    // fn sync_world(&mut self, entity: Entity) {
-    //     self.add(SyncWorld { entity });
-    // }
 }
 
 impl<'a, 'b> EntityCommandsSync<'a, 'b> for EntityCommands<'a, 'b> {

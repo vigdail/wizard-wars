@@ -216,12 +216,10 @@ fn send_packets_system(
 fn broadcast_changes_system<C>(
     mut net: ResMut<NetworkResource>,
     changed: Query<(&Uuid, &C), Changed<C>>,
-    // mut sync_pack: ResMut<
 ) where
     C: Into<EcsCompPacket> + ChannelMessage + std::fmt::Debug + Clone + Copy,
 {
     for (id, component) in changed.iter() {
-        // info!("Sync component: {:?} => {:?}", id, component);
         let pack = CompSyncPackage {
             comp_updates: vec![(*id, CompUpdateKind::Inserted((*component).into()))],
         };

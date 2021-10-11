@@ -91,10 +91,6 @@ fn handle_client_joined(
 
             builder.sync_world();
 
-            // packets.send(Pack::single(
-            //     LobbyServerMessage::Welcome(WorldSync {}),
-            //     client,
-            // ));
             for name in clients.iter() {
                 packets.send(Pack::single(
                     LobbyServerMessage::PlayerJoined(name.to_string()),
