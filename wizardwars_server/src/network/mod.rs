@@ -95,6 +95,7 @@ fn handle_network_events_system(
         match event {
             NetworkEvent::Connected(handle) => match net.connections.get_mut(handle) {
                 Some(_connection) => {
+                    // TODO: Create entity with client component here?
                     info!("New connection handle: {:?}", &handle);
                 }
                 None => panic!("Got packet for non-existing connection [{}]", handle),
@@ -103,10 +104,16 @@ fn handle_network_events_system(
                 info!("Disconnected handle: {:?}", &handle);
                 if let Some(&(entity, host)) = clients_map.get(handle) {
                     cmd.entity(entity).despawn_sync();
+
+                    // TODO: This should be a separate system
                     if host.is_some() {
-                        let new_host_entity = clients_map
-                            .iter()
-                            .find_map(|(_, (entity, host))| host.map(|_| *entity));
+                        let new_host_entity = clients.iter().find_map(|(entity, _, host)| {
+                            if host.is_none() {
+                                Some(entity)
+                            } else {
+                                None
+                            }
+                        });
                         if let Some(new_host_entity) = new_host_entity {
                             cmd.entity(new_host_entity).insert(Host);
                         }
